@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 
 struct HabitDetailView: View {
     @EnvironmentObject private var store: HabitStore
@@ -28,8 +27,15 @@ struct HabitDetailView: View {
         ScrollView {
             VStack(spacing: 20) {
                 Button {
-                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                    store.toggle(habit, on: today)
+                    let wasDone = doneToday
+                    withAnimation(.snappy) {
+                        store.toggle(habit, on: today)
+                    }
+                    if wasDone {
+                        Haptics.tap()
+                    } else if let updated = store.habit(id: habitID) {
+                        Haptics.checkIn(newStreak: StreakCalculator.currentStreak(updated.completions, today: today))
+                    }
                 } label: {
                     Label(
                         doneToday ? "Done today" : "Mark today done",
@@ -99,7 +105,10 @@ struct HabitDetailView: View {
                         completions: habit.completions,
                         color: color
                     ) { day in
-                        store.toggle(habit, on: day)
+                        Haptics.tap()
+                        withAnimation(.snappy) {
+                            store.toggle(habit, on: day)
+                        }
                     }
                 }
                 .padding()

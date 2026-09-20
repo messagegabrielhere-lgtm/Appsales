@@ -13,6 +13,7 @@ struct HabitEditorView: View {
     @State private var name: String
     @State private var emoji: String
     @State private var colorName: String
+    @FocusState private var nameFocused: Bool
 
     init(mode: Mode, onSave: @escaping (Habit) -> Void) {
         self.mode = mode
@@ -45,7 +46,11 @@ struct HabitEditorView: View {
             Form {
                 Section("Name") {
                     TextField("e.g. Drink water", text: $name)
+                        .focused($nameFocused)
                         .submitLabel(.done)
+                        .onSubmit {
+                            if !trimmedName.isEmpty { save() }
+                        }
                 }
 
                 Section("Icon") {
@@ -92,6 +97,9 @@ struct HabitEditorView: View {
             }
             .navigationTitle(isEditing ? "Edit Habit" : "New Habit")
             .navigationBarTitleDisplayMode(.inline)
+            .onAppear {
+                if !isEditing { nameFocused = true }
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

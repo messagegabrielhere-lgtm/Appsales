@@ -4,6 +4,7 @@ struct ContentView: View {
     @EnvironmentObject private var store: HabitStore
     @Environment(\.scenePhase) private var scenePhase
     @State private var showingEditor = false
+    @State private var showingAbout = false
     @State private var today = DayKey.today()
 
     var body: some View {
@@ -18,22 +19,34 @@ struct ContentView: View {
             .navigationTitle("Kept")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    if !store.habits.isEmpty {
+                    if store.habits.isEmpty {
+                        aboutButton
+                    } else {
                         EditButton()
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showingEditor = true
-                    } label: {
-                        Label("Add Habit", systemImage: "plus")
+                    HStack(spacing: 16) {
+                        if !store.habits.isEmpty {
+                            aboutButton
+                        }
+                        Button {
+                            showingEditor = true
+                        } label: {
+                            Label("Add Habit", systemImage: "plus")
+                        }
                     }
                 }
             }
             .sheet(isPresented: $showingEditor) {
                 HabitEditorView(mode: .create) { habit in
-                    store.add(habit)
+                    withAnimation(.snappy) {
+                        store.add(habit)
+                    }
                 }
+            }
+            .sheet(isPresented: $showingAbout) {
+                AboutView()
             }
             .navigationDestination(for: UUID.self) { id in
                 HabitDetailView(habitID: id)
@@ -47,26 +60,91 @@ struct ContentView: View {
         }
     }
 
+    private var aboutButton: some View {
+        Button {
+            showingAbout = true
+        } label: {
+            Label("About", systemImage: "info.circle")
+        }
+    }
+
+    private var doneCount: Int {
+        store.habits.filter { $0.isCompleted(on: today) }.count
+    }
+
     private var habitList: some View {
         List {
+            Section {
+                TodayProgressView(done: doneCount, total: store.habits.count, date: today.date())
+                    .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
+            }
+
             Section {
                 ForEach(store.habits) { habit in
                     NavigationLink(value: habit.id) {
                         HabitRow(habit: habit, today: today) {
-                            store.toggle(habit, on: today)
+                            toggle(habit)
                         }
                     }
                 }
                 .onDelete { offsets in
-                    store.delete(at: offsets)
+                    withAnimation(.snappy) {
+                        store.delete(at: offsets)
+                    }
                 }
                 .onMove { source, destination in
                     store.move(from: source, to: destination)
                 }
-            } header: {
-                Text(today.date(), format: .dateTime.weekday(.wide).month().day())
             }
         }
+    }
+
+    private func toggle(_ habit: Habit) {
+        let wasDone = habit.isCompleted(on: today)
+        withAnimation(.snappy) {
+            store.toggle(habit, on: today)
+        }
+        guard !wasDone, let updated = store.habit(id: habit.id) else {
+            Haptics.tap()
+            return
+        }
+        let streak = StreakCalculator.currentStreak(updated.completions, today: today)
+        if doneCount == store.habits.count {
+            Haptics.success()
+        } else {
+            Haptics.checkIn(newStreak: streak)
+        }
+    }
+}
+
+/// "3 of 5 done" with a thin progress bar. Reads as a single accessibility element.
+private struct TodayProgressView: View {
+    let done: Int
+    let total: Int
+    let date: Date
+
+    private var fraction: Double {
+        total == 0 ? 0 : Double(done) / Double(total)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(date, format: .dateTime.weekday(.wide).month().day())
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text(done == total ? "All done" : "\(done) of \(total) done")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(done == total ? Color.accentColor : Color.secondary)
+                    .contentTransition(.numericText())
+            }
+            ProgressView(value: fraction)
+                .tint(.accentColor)
+                .animation(.snappy, value: fraction)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(done) of \(total) habits done today")
     }
 }
 

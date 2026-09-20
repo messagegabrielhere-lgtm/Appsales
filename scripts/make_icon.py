@@ -11,8 +11,12 @@ import struct
 import zlib
 from pathlib import Path
 
-SIZE = 1024
-OUT = Path(__file__).resolve().parent.parent / "Kept/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png"
+ASSETS = Path(__file__).resolve().parent.parent / "Kept/Assets.xcassets"
+OUTPUTS = [
+    (1024, ASSETS / "AppIcon.appiconset/AppIcon-1024.png"),
+    # 72pt @3x, shown inside the About screen (iOS never exposes the real icon to apps).
+    (216, ASSETS / "AppIconPreview.imageset/AppIconPreview@3x.png"),
+]
 
 TOP_LEFT = (0x0F, 0x76, 0x6E)      # deep teal
 BOTTOM_RIGHT = (0x22, 0xC5, 0x5E)  # green
@@ -43,31 +47,40 @@ def png_bytes(width, height, rows):
     return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", header) + chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b"")
 
 
-def main():
+def render(size):
+    scale = size / 1024.0
+    ax, ay = A[0] * scale, A[1] * scale
+    bx, by = B[0] * scale, B[1] * scale
+    cx, cy = C[0] * scale, C[1] * scale
+    half_width = HALF_WIDTH * scale
     rows = []
-    for y in range(SIZE):
+    for y in range(size):
         row = bytearray()
-        for x in range(SIZE):
-            t = (x + y) / (2.0 * (SIZE - 1))
+        for x in range(size):
+            t = (x + y) / (2.0 * (size - 1))
             r = TOP_LEFT[0] + (BOTTOM_RIGHT[0] - TOP_LEFT[0]) * t
             g = TOP_LEFT[1] + (BOTTOM_RIGHT[1] - TOP_LEFT[1]) * t
             b = TOP_LEFT[2] + (BOTTOM_RIGHT[2] - TOP_LEFT[2]) * t
 
             d = min(
-                dist_to_segment(x, y, *A, *B),
-                dist_to_segment(x, y, *B, *C),
+                dist_to_segment(x, y, ax, ay, bx, by),
+                dist_to_segment(x, y, bx, by, cx, cy),
             )
-            alpha = max(0.0, min(1.0, HALF_WIDTH - d + 0.5))  # 1px anti-alias feather
+            alpha = max(0.0, min(1.0, half_width - d + 0.5))  # 1px anti-alias feather
             if alpha > 0:
                 r = r + (255 - r) * alpha
                 g = g + (255 - g) * alpha
                 b = b + (255 - b) * alpha
             row += bytes((int(r), int(g), int(b)))
         rows.append(bytes(row))
+    return png_bytes(size, size, rows)
 
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_bytes(png_bytes(SIZE, SIZE, rows))
-    print(f"wrote {OUT} ({OUT.stat().st_size} bytes)")
+
+def main():
+    for size, out in OUTPUTS:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_bytes(render(size))
+        print(f"wrote {out} ({out.stat().st_size} bytes)")
 
 
 if __name__ == "__main__":

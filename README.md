@@ -7,7 +7,9 @@ no subscription, no analytics. Everything stays on the device.
 - Tap the circle each day. Streaks count consecutive days and survive until the day after a miss.
 - Open a habit for current streak, best streak, total days, last-30-day rate, and a tappable
   month calendar to fix missed check-ins.
+- A week-at-a-glance dot strip on every row and a "3 of 5 done" progress bar for the day.
 - Reorder or swipe-to-delete from the list.
+- Export everything as plain JSON from the About screen. Your data is yours.
 
 ## Requirements
 

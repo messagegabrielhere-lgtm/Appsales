@@ -35,7 +35,8 @@ WHY KEPT
 • Private by design. Kept never connects to the internet. There is no account to create and nothing is uploaded, ever. Your data is a single file on your device, protected by iOS encryption.
 • Forgiving streaks. A streak isn't broken until the day after a miss, so you're never shown a zero before you've had the chance to check in.
 • Fix the past. Forgot to tap yesterday? Open the habit and tap the day on the calendar.
-• Clear stats. Current streak, best streak, total days, and your rate over the last 30 days.
+• Clear stats. Current streak, best streak, total days, your rate over the last 30 days, and a week-at-a-glance strip on every habit.
+• Your data is yours. Export everything as plain JSON in one tap.
 • Made for iPhone and iPad, light and dark mode, Dynamic Type, and VoiceOver.
 
 WHAT KEPT DOESN'T DO
