@@ -1,0 +1,71 @@
+# XcodeGen spec. Run `xcodegen generate` in this folder to produce Kept.xcodeproj.
+# Install XcodeGen with: brew install xcodegen
+name: Kept
+
+options:
+  bundleIdPrefix: com.example
+  deploymentTarget:
+    iOS: "17.0"
+  xcodeVersion: "15.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    # Set this to your 10-character Apple Developer Team ID before archiving,
+    # or pick your team in Xcode under Signing & Capabilities.
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Automatic
+  configs:
+    Debug:
+      ENABLE_TESTABILITY: YES
+
+targets:
+  Kept:
+    type: application
+    platform: iOS
+    sources:
+      - path: Kept
+    info:
+      path: Kept/Info.plist
+      properties:
+        CFBundleDisplayName: Kept
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSRequiresIPhoneOS: true
+        ITSAppUsesNonExemptEncryption: false
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+    settings:
+      base:
+        # Change this to your own reverse-DNS identifier. It must match App Store Connect.
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.kept
+        PRODUCT_NAME: Kept
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        GENERATE_INFOPLIST_FILE: NO
+        SWIFT_EMIT_LOC_STRINGS: YES
+    scheme:
+      testTargets:
+        - KeptTests
+
+  KeptTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: KeptTests
+    dependencies:
+      - target: Kept
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.kept.tests
+        GENERATE_INFOPLIST_FILE: YES
