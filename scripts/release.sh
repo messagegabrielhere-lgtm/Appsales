@@ -30,11 +30,13 @@ xcodebuild archive \
   -destination "generic/platform=iOS" \
   -archivePath "$ARCHIVE" \
   -allowProvisioningUpdates \
+  -allowProvisioningDeviceRegistration \
   PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
   DEVELOPMENT_TEAM="$TEAM_ID" \
   MARKETING_VERSION="$VERSION" \
   CURRENT_PROJECT_VERSION="$BUILD" \
   CODE_SIGN_STYLE=Automatic \
+  CODE_SIGN_IDENTITY="Apple Distribution" \
   > build/archive.log 2>&1
 status=$?
 set -e
