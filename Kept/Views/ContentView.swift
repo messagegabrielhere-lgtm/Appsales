@@ -6,9 +6,10 @@ struct ContentView: View {
     @State private var showingEditor = false
     @State private var showingAbout = false
     @State private var today = DayKey.today()
+    @State private var path: [UUID] = []
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             Group {
                 if store.habits.isEmpty {
                     EmptyStateView { showingEditor = true }
@@ -57,6 +58,26 @@ struct ContentView: View {
             if phase == .active {
                 today = DayKey.today()
             }
+        }
+        .onAppear(perform: openScreenFromLaunchArguments)
+    }
+
+    /// `-screen detail` or `-screen editor` (used by scripts/screenshots.sh together with
+    /// `-demo`) opens that screen on launch so screenshots need no tapping.
+    private func openScreenFromLaunchArguments() {
+        let args = CommandLine.arguments
+        guard let index = args.firstIndex(of: "-screen"), index + 1 < args.count else { return }
+        switch args[index + 1] {
+        case "detail":
+            if let first = store.habits.first {
+                path = [first.id]
+            }
+        case "editor":
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                showingEditor = true
+            }
+        default:
+            break
         }
     }
 
