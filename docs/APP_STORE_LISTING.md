@@ -52,7 +52,15 @@ habit,tracker,streak,daily,routine,goals,checklist,productivity,private,simple,c
 
 ## Support URL
 
-Your repository's Issues page, or a page with an email address.
+```
+https://messagegabrielhere-lgtm.github.io/Appsales/docs/support/
+```
+
+Privacy Policy URL (under App Privacy):
+
+```
+https://messagegabrielhere-lgtm.github.io/Appsales/docs/privacy/
+```
 
 ## Marketing URL (optional)
 

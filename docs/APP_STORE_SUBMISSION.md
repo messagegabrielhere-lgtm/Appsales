@@ -61,8 +61,8 @@ country and VAT.
 5. Paste the copy from `docs/APP_STORE_LISTING.md` into the version page.
 6. Privacy Policy URL: host `docs/PRIVACY_POLICY.md` somewhere public. GitHub Pages on this
    repo works: Settings > Pages > Deploy from branch, then use
-   `https://<your-user>.github.io/Appsales/docs/PRIVACY_POLICY`.
-   Support URL can be the repo's Issues page.
+   `https://messagegabrielhere-lgtm.github.io/Appsales/docs/privacy/`.
+   Support URL: `https://messagegabrielhere-lgtm.github.io/Appsales/docs/support/`.
 
 ## 4. Screenshots (you)
 
