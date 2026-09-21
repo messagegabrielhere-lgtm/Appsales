@@ -100,8 +100,7 @@ jobs:
             MARKETING_VERSION="${{ github.event.inputs.marketing_version }}" \
             CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
             CODE_SIGN_STYLE=Automatic \
-            CODE_SIGN_IDENTITY="Apple Distribution" \
-            | tee archive.log \
+                      | tee archive.log \
             | (grep -E "error:|warning:|\*\* (ARCHIVE|BUILD)" || true)
         env:
           APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
