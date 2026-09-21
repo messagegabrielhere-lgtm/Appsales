@@ -2,44 +2,28 @@
 # One-command App Store release from a Mac that has Xcode signed in to your Apple ID.
 #
 #   scripts/release.sh                     # team MAP974T827, version 1.0.0, build number from the clock
-#   scripts/release.sh TEAMID 1.0.1        # explicit marketing version
-#   scripts/release.sh TEAMID 1.0.1 42     # explicit build number
+#   scripts/release.sh MAP974T827 1.0.1    # explicit marketing version
+#   scripts/release.sh MAP974T827 1.0.1 42 # explicit build number
 #
-# Find your Team ID at https://developer.apple.com/account under Membership details.
 # Set BUNDLE_ID in the environment to override the default bundle identifier.
+# Set SKIP_PAUSE=1 to skip the "create the app record" pause on later releases.
 set -euo pipefail
+cd "$(dirname "$0")/.."
+source scripts/_setup.sh
 
 TEAM_ID="${1:-MAP974T827}"
 VERSION="${2:-1.0.0}"
 BUILD="${3:-$(date +%Y%m%d%H%M)}"
 BUNDLE_ID="${BUNDLE_ID:-com.messagegabrielhere.kept}"
-
-cd "$(dirname "$0")/.."
-mkdir -p build
 ARCHIVE="build/Kept.xcarchive"
+mkdir -p build
 
-say() { printf '\n\033[1;32m==> %s\033[0m\n' "$*"; }
-
-if ! command -v xcodebuild >/dev/null; then
-  echo "Xcode is not installed. Install it from the Mac App Store, open it once, then re-run." >&2
-  exit 1
-fi
-if ! command -v xcodegen >/dev/null; then
-  if ! command -v brew >/dev/null; then
-    echo "Homebrew is needed to install XcodeGen. Run this first, then re-run:" >&2
-    echo '  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"' >&2
-    exit 1
-  fi
-  say "Installing XcodeGen"
-  brew install xcodegen
-fi
-
-say "Generating Kept.xcodeproj"
-xcodegen generate --quiet
+ensure_xcode
+generate_project
 
 say "Archiving $BUNDLE_ID version $VERSION build $BUILD (team $TEAM_ID)"
 rm -rf "$ARCHIVE"
-set -o pipefail
+set +e
 xcodebuild archive \
   -project Kept.xcodeproj \
   -scheme Kept \
@@ -51,8 +35,11 @@ xcodebuild archive \
   MARKETING_VERSION="$VERSION" \
   CURRENT_PROJECT_VERSION="$BUILD" \
   CODE_SIGN_STYLE=Automatic \
-  | tee build/archive.log \
-  | (grep -E "error:|warning: .*(sign|provision)|\*\* ARCHIVE" || true)
+  > build/archive.log 2>&1
+status=$?
+set -e
+grep -E "\*\* ARCHIVE" build/archive.log || true
+[ $status -eq 0 ] || show_errors_and_exit build/archive.log
 
 cat > build/ExportOptions.plist <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -83,12 +70,16 @@ MSG
 fi
 
 say "Uploading to App Store Connect"
+set +e
 xcodebuild -exportArchive \
   -archivePath "$ARCHIVE" \
   -exportOptionsPlist build/ExportOptions.plist \
   -exportPath build/export \
   -allowProvisioningUpdates \
-  | tee build/export.log \
-  | (grep -E "error:|Upload|EXPORT" || true)
+  > build/export.log 2>&1
+status=$?
+set -e
+grep -E "Upload succeeded|EXPORT SUCCEEDED" build/export.log || true
+[ $status -eq 0 ] || show_errors_and_exit build/export.log
 
-say "Done. Build $BUILD of $VERSION is uploading. It appears under TestFlight in App Store Connect in 10 to 30 minutes."
+say "Done. Build $BUILD of $VERSION is uploaded. It appears under TestFlight in App Store Connect in 10 to 30 minutes."

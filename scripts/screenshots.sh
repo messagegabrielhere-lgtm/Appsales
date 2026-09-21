@@ -8,10 +8,11 @@
 # Cmd-S in the Simulator app to save more images to your Desktop.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+source scripts/_setup.sh
 mkdir -p build/screenshots
 
-command -v xcodegen >/dev/null || brew install xcodegen
-xcodegen generate --quiet
+ensure_xcode
+generate_project
 
 pick_device() {
   # Prints the UDID of the first available simulator whose name matches any pattern given.
