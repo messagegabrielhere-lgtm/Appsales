@@ -1,7 +1,7 @@
 #!/bin/bash
 # One-command App Store release from a Mac that has Xcode signed in to your Apple ID.
 #
-#   scripts/release.sh TEAMID              # version 1.0.0, build number from the clock
+#   scripts/release.sh                     # team MAP974T827, version 1.0.0, build number from the clock
 #   scripts/release.sh TEAMID 1.0.1        # explicit marketing version
 #   scripts/release.sh TEAMID 1.0.1 42     # explicit build number
 #
@@ -9,7 +9,7 @@
 # Set BUNDLE_ID in the environment to override the default bundle identifier.
 set -euo pipefail
 
-TEAM_ID="${1:?Usage: scripts/release.sh TEAMID [version] [build]}"
+TEAM_ID="${1:-MAP974T827}"
 VERSION="${2:-1.0.0}"
 BUILD="${3:-$(date +%Y%m%d%H%M)}"
 BUNDLE_ID="${BUNDLE_ID:-com.messagegabrielhere.kept}"

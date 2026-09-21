@@ -38,9 +38,8 @@ country and VAT.
 
 ## 2. Project setup
 
-1. Pick a bundle identifier you own, such as `com.yourname.kept`. Replace the two
-   `com.example` values in `project.yml` (`bundleIdPrefix` and `PRODUCT_BUNDLE_IDENTIFIER`,
-   plus the tests target's identifier).
+1. The bundle identifier `com.messagegabrielhere.kept` and Team ID are already set in
+   `project.yml`.
 2. Run `xcodegen generate` and open `Kept.xcodeproj`.
 3. In **Signing & Capabilities**, choose your team. Xcode creates the App ID and provisioning
    profile automatically.

@@ -7,7 +7,7 @@ With Xcode installed and signed in to your Apple ID (Xcode > Settings > Accounts
 ```sh
 git clone https://github.com/messagegabrielhere-lgtm/Appsales.git
 cd Appsales
-scripts/release.sh YOUR_TEAM_ID
+scripts/release.sh
 ```
 
 The script installs XcodeGen if needed, generates the project, archives with automatic

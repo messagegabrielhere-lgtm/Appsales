@@ -3,7 +3,7 @@
 name: Kept
 
 options:
-  bundleIdPrefix: com.example
+  bundleIdPrefix: com.messagegabrielhere
   deploymentTarget:
     iOS: "17.0"
   xcodeVersion: "15.0"
@@ -14,9 +14,8 @@ settings:
     SWIFT_VERSION: "5.9"
     MARKETING_VERSION: "1.0.0"
     CURRENT_PROJECT_VERSION: "1"
-    # Set this to your 10-character Apple Developer Team ID before archiving,
-    # or pick your team in Xcode under Signing & Capabilities.
-    DEVELOPMENT_TEAM: ""
+    # Apple Developer Team ID (developer.apple.com > Membership details).
+    DEVELOPMENT_TEAM: MAP974T827
     CODE_SIGN_STYLE: Automatic
   configs:
     Debug:
@@ -46,8 +45,8 @@ targets:
           - UIInterfaceOrientationLandscapeRight
     settings:
       base:
-        # Change this to your own reverse-DNS identifier. It must match App Store Connect.
-        PRODUCT_BUNDLE_IDENTIFIER: com.example.kept
+        # Must match the bundle ID on the App Store Connect app record.
+        PRODUCT_BUNDLE_IDENTIFIER: com.messagegabrielhere.kept
         PRODUCT_NAME: Kept
         TARGETED_DEVICE_FAMILY: "1,2"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
@@ -67,5 +66,5 @@ targets:
       - target: Kept
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.example.kept.tests
+        PRODUCT_BUNDLE_IDENTIFIER: com.messagegabrielhere.kept.tests
         GENERATE_INFOPLIST_FILE: YES
