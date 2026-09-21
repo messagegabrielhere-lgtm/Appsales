@@ -1,0 +1,56 @@
+name: Publish website
+
+# Publishes the landing page, privacy policy, and support page to GitHub Pages.
+# The first run enables Pages on the repository automatically.
+
+on:
+  push:
+    branches:
+      - claude/app-store-99-cent-app-chwfsq
+      - main
+    paths:
+      - "index.html"
+      - "docs/**"
+      - "Kept/Assets.xcassets/AppIconPreview.imageset/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable and configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Assemble site
+        run: |
+          mkdir -p site/docs site/Kept/Assets.xcassets/AppIconPreview.imageset
+          cp index.html site/
+          cp -R docs/privacy docs/support docs/_style.css site/docs/
+          cp Kept/Assets.xcassets/AppIconPreview.imageset/AppIconPreview@3x.png site/Kept/Assets.xcassets/AppIconPreview.imageset/
+          touch site/.nojekyll
+
+      - name: Upload site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
