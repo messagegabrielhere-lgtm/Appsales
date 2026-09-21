@@ -1,4 +1,24 @@
-# Releasing from GitHub, no Mac required
+# Releasing
+
+## Path 1: from your Mac, one command
+
+With Xcode installed and signed in to your Apple ID (Xcode > Settings > Accounts):
+
+```sh
+git clone https://github.com/messagegabrielhere-lgtm/Appsales.git
+cd Appsales
+scripts/release.sh YOUR_TEAM_ID
+```
+
+The script installs XcodeGen if needed, generates the project, archives with automatic
+signing (which registers the bundle ID and creates certificates for you), pauses so you can
+create the app record in App Store Connect, then uploads. Screenshots:
+
+```sh
+scripts/screenshots.sh
+```
+
+## Path 2: from GitHub, no Mac required
 
 The **Release to App Store Connect** workflow archives, signs, and uploads a build from a
 GitHub-hosted Mac. Once it runs green, the build sits in App Store Connect ready to attach to
