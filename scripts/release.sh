@@ -39,6 +39,25 @@ xcodebuild archive \
   > build/archive.log 2>&1
 status=$?
 set -e
+if [ $status -ne 0 ] && grep -q "no devices" build/archive.log; then
+  say "No registered device; archiving unsigned and signing at upload instead"
+  rm -rf "$ARCHIVE"
+  set +e
+  xcodebuild archive \
+    -project Kept.xcodeproj \
+    -scheme Kept \
+    -destination "generic/platform=iOS" \
+    -archivePath "$ARCHIVE" \
+    PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
+    DEVELOPMENT_TEAM="$TEAM_ID" \
+    MARKETING_VERSION="$VERSION" \
+    CURRENT_PROJECT_VERSION="$BUILD" \
+    CODE_SIGNING_ALLOWED=NO \
+    CODE_SIGNING_REQUIRED=NO \
+    > build/archive.log 2>&1
+  status=$?
+  set -e
+fi
 grep -E "\*\* ARCHIVE" build/archive.log || true
 [ $status -eq 0 ] || show_errors_and_exit build/archive.log
 
