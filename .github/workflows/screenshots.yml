@@ -6,6 +6,9 @@ name: App Store screenshots
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   screenshots:
     runs-on: macos-15
@@ -31,3 +34,22 @@ jobs:
           name: app-store-screenshots
           path: build/screenshots/marketing
           if-no-files-found: error
+
+      - name: Publish to the screenshots branch
+        run: |
+          set -e
+          STAGE="$RUNNER_TEMP/shots"
+          rm -rf "$STAGE" && mkdir -p "$STAGE"
+          cp -R build/screenshots/marketing "$STAGE/marketing"
+          cp -R build/screenshots/iphone-6.5-inch "$STAGE/raw-iphone-6.5-inch"
+          cp -R build/screenshots/ipad-13-inch "$STAGE/raw-ipad-13-inch"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan screenshots
+          git rm -rfq .
+          git clean -fdxq
+          cp -R "$STAGE/." .
+          printf 'App Store screenshots generated from %s by the "App Store screenshots" workflow.\n\nUpload marketing/iphone-6.5-inch to the iPhone 6.5" tab and marketing/ipad-13-inch to the iPad 13" tab, in file order.\n' "$GITHUB_SHA" > README.md
+          git add -A
+          git commit -qm "Screenshots from $GITHUB_SHA"
+          git push --force origin screenshots
