@@ -116,7 +116,6 @@ struct HabitEditorView: View {
                 } footer: {
                     Text("Reminders only fire on scheduled days you haven't checked in yet.")
                 }
-            }
                 Section("Icon") {
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 6), spacing: 10) {
                         ForEach(HabitPalette.emojis, id: \.self) { candidate in
@@ -158,7 +157,7 @@ struct HabitEditorView: View {
                     }
                     .padding(.vertical, 4)
                 }
-
+            }
             .navigationTitle(isEditing ? "Edit Habit" : "New Habit")
             .navigationBarTitleDisplayMode(.inline)
             .onAppear {
