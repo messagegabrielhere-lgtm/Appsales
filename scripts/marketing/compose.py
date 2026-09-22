@@ -84,7 +84,10 @@ def compose(src, dst, title, subtitle):
     target_w = int(width * 0.80)
     scale = target_w / shot.width
     shot = shot.resize((target_w, int(shot.height * scale)), Image.LANCZOS)
-    radius = int(target_w * 0.085)
+    # iPhones have a large display corner radius; iPads a small one, and their status bar
+    # text sits close to the corners.
+    is_tablet = shot.width / shot.height > 0.6
+    radius = int(target_w * (0.035 if is_tablet else 0.085))
     x = (width - shot.width) // 2
     top = y + int(height * 0.035)
 

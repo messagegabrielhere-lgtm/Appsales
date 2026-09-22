@@ -6,6 +6,8 @@ import WidgetKit
 struct WidgetShowcaseView: View {
     let habits: [Habit]
 
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
     private let corner: CGFloat = 22
 
     var body: some View {
@@ -28,6 +30,7 @@ struct WidgetShowcaseView: View {
                 Spacer()
                 Spacer()
             }
+            .scaleEffect(sizeClass == .regular ? 1.7 : 1)
         }
     }
 

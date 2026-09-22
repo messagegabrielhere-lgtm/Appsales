@@ -6,6 +6,7 @@ struct ContentView: View {
     @State private var showingEditor = false
     @State private var showingAbout = false
     @State private var showingWidgetShowcase = false
+    @State private var demoEditHabit: Habit?
     @State private var today = DayKey.today()
     @State private var path: [UUID] = []
 
@@ -57,6 +58,11 @@ struct ContentView: View {
             }
             .fullScreenCover(isPresented: $showingWidgetShowcase) {
                 WidgetShowcaseView(habits: store.habits)
+            }
+            .sheet(item: $demoEditHabit) { habit in
+                HabitEditorView(mode: .edit(habit)) { updated in
+                    store.update(updated)
+                }
             }
             .navigationDestination(for: UUID.self) { id in
                 HabitDetailView(habitID: id)
@@ -148,8 +154,14 @@ struct ContentView: View {
                 path = [first.id]
             }
         case "editor":
+            // Show the editor on an existing habit with a weekday schedule and a reminder,
+            // so the screenshot demonstrates both without a keyboard in the way.
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                showingEditor = true
+                if let habit = store.habits.first(where: { !$0.isEveryDay }) ?? store.habits.first {
+                    demoEditHabit = habit
+                } else {
+                    showingEditor = true
+                }
             }
         case "widgets":
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {

@@ -122,19 +122,34 @@ final class HabitStore: ObservableObject {
     static func preview() -> HabitStore {
         let store = HabitStore(fileURL: nil)
         let today = DayKey.today()
-        func days(_ offsets: [Int]) -> Set<DayKey> { Set(offsets.map { today.adding(days: -$0) }) }
+
+        /// Deterministic pseudo-random miss pattern so screenshots are reproducible.
+        func days(count: Int, hitRate: Int, skipping explicit: Set<Int> = [], weekdaysOnly: Bool = false) -> Set<DayKey> {
+            var result: Set<DayKey> = []
+            for offset in 0..<count {
+                if explicit.contains(offset) { continue }
+                let noise = (offset &* 2_654_435_761) % 100
+                if noise >= hitRate { continue }
+                let day = today.adding(days: -offset)
+                if weekdaysOnly && !Habit.weekdays.contains(day.weekday()) { continue }
+                result.insert(day)
+            }
+            return result
+        }
+
         store.habits = [
             Habit(name: "Drink water", emoji: "💧", colorName: "blue",
-                  completions: days(Array(0..<12) + Array(14..<40)), reminderMinutes: 9 * 60),
+                  completions: days(count: 330, hitRate: 100, skipping: [12, 40, 41, 75, 110, 150, 151, 200, 260, 300]),
+                  reminderMinutes: 9 * 60),
             Habit(name: "Walk 20 minutes", emoji: "🚶", colorName: "green",
-                  completions: days([1, 2, 3, 4, 6, 7, 8, 10, 11, 13, 15, 16, 17, 18, 20, 22, 23])),
+                  completions: days(count: 220, hitRate: 62, skipping: [0])),
             Habit(name: "Read 10 pages", emoji: "📚", colorName: "orange",
-                  completions: days([0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 12, 13, 14, 16, 17, 19, 20, 21, 22, 24, 26]),
+                  completions: days(count: 260, hitRate: 88, weekdaysOnly: true),
                   scheduledWeekdays: Habit.weekdays, reminderMinutes: 21 * 60 + 30),
             Habit(name: "Meditate", emoji: "🧘", colorName: "purple",
-                  completions: days([1, 3, 5, 8, 9, 12])),
+                  completions: days(count: 90, hitRate: 35, skipping: [0])),
             Habit(name: "No phone in bed", emoji: "📵", colorName: "indigo",
-                  completions: days([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20])),
+                  completions: days(count: 45, hitRate: 100)),
         ]
         return store
     }

@@ -145,6 +145,8 @@ struct HabitDetailView: View {
                     .foregroundStyle(.secondary)
             }
             .padding()
+            .frame(maxWidth: 720)
+            .frame(maxWidth: .infinity)
         }
         .navigationTitle("\(habit.emoji) \(habit.name)")
         .navigationBarTitleDisplayMode(.inline)

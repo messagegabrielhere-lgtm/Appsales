@@ -1,16 +1,26 @@
 import SwiftUI
 
 /// A year of check-ins at a glance: 53 columns of weeks, 7 rows of days, today at the far right.
+/// Cells grow to fill the available width (up to a cap) and scroll horizontally when they can't.
 struct YearHeatmapView: View {
     let completions: Set<DayKey>
     let today: DayKey
     let schedule: Set<Int>
     let color: Color
 
+    @State private var availableWidth: CGFloat = 0
+
     private let calendar = Calendar.current
     private let weeks = 53
-    private let cell: CGFloat = 11
+    private let minCell: CGFloat = 11
+    private let maxCell: CGFloat = 20
     private let gap: CGFloat = 3
+
+    private var cell: CGFloat {
+        guard availableWidth > 0 else { return minCell }
+        let fitted = (availableWidth - CGFloat(weeks - 1) * gap) / CGFloat(weeks)
+        return min(maxCell, max(minCell, fitted.rounded(.down)))
+    }
 
     /// The first cell: the start of the week that contains the day one year back.
     private var startDay: DayKey {
@@ -23,13 +33,14 @@ struct YearHeatmapView: View {
 
     var body: some View {
         let start = startDay
+        let size = cell
         ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(alignment: .top, spacing: gap) {
                     ForEach(0..<weeks, id: \.self) { week in
                         VStack(spacing: gap) {
                             ForEach(0..<7, id: \.self) { row in
-                                square(for: start.adding(days: week * 7 + row, calendar: calendar))
+                                square(for: start.adding(days: week * 7 + row, calendar: calendar), size: size)
                             }
                         }
                         .id(week)
@@ -41,12 +52,19 @@ struct YearHeatmapView: View {
                 proxy.scrollTo(weeks - 1, anchor: .trailing)
             }
         }
-        .frame(height: 7 * cell + 6 * gap + 4)
+        .frame(height: 7 * size + 6 * gap + 4)
+        .background(
+            GeometryReader { geometry in
+                Color.clear
+                    .onAppear { availableWidth = geometry.size.width }
+                    .onChange(of: geometry.size.width) { _, width in availableWidth = width }
+            }
+        )
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Year overview, \(completions.count) days completed")
     }
 
-    private func square(for day: DayKey) -> some View {
+    private func square(for day: DayKey, size: CGFloat) -> some View {
         let done = completions.contains(day)
         let future = day > today
         let scheduled = schedule.contains(day.weekday(calendar: calendar))
@@ -58,9 +76,9 @@ struct YearHeatmapView: View {
         } else {
             fill = color.opacity(0.16)
         }
-        return RoundedRectangle(cornerRadius: 2.5)
+        return RoundedRectangle(cornerRadius: size * 0.22)
             .fill(fill)
-            .frame(width: cell, height: cell)
+            .frame(width: size, height: size)
     }
 }
 

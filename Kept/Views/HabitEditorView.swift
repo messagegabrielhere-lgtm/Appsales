@@ -74,48 +74,6 @@ struct HabitEditorView: View {
                         }
                 }
 
-                Section("Icon") {
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 6), spacing: 10) {
-                        ForEach(HabitPalette.emojis, id: \.self) { candidate in
-                            let selected = candidate == emoji
-                            Text(candidate)
-                                .font(.title2)
-                                .frame(width: 44, height: 44)
-                                .background(
-                                    selected ? color.opacity(0.2) : Color.clear,
-                                    in: RoundedRectangle(cornerRadius: 10)
-                                )
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .stroke(selected ? color : Color.clear, lineWidth: 2)
-                                )
-                                .contentShape(Rectangle())
-                                .onTapGesture { emoji = candidate }
-                                .accessibilityAddTraits(selected ? .isSelected : [])
-                        }
-                    }
-                    .padding(.vertical, 4)
-                }
-
-                Section("Color") {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 40))], spacing: 12) {
-                        ForEach(HabitPalette.names, id: \.self) { candidate in
-                            let selected = candidate == colorName
-                            Circle()
-                                .fill(HabitPalette.color(candidate))
-                                .frame(width: 32, height: 32)
-                                .overlay(
-                                    Circle().stroke(Color.primary, lineWidth: selected ? 3 : 0)
-                                )
-                                .contentShape(Circle())
-                                .onTapGesture { colorName = candidate }
-                                .accessibilityLabel(candidate)
-                                .accessibilityAddTraits(selected ? .isSelected : [])
-                        }
-                    }
-                    .padding(.vertical, 4)
-                }
-
                 Section {
                     HStack(spacing: 6) {
                         ForEach(orderedWeekdays, id: \.self) { weekday in
@@ -159,6 +117,48 @@ struct HabitEditorView: View {
                     Text("Reminders only fire on scheduled days you haven't checked in yet.")
                 }
             }
+                Section("Icon") {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 6), spacing: 10) {
+                        ForEach(HabitPalette.emojis, id: \.self) { candidate in
+                            let selected = candidate == emoji
+                            Text(candidate)
+                                .font(.title2)
+                                .frame(width: 44, height: 44)
+                                .background(
+                                    selected ? color.opacity(0.2) : Color.clear,
+                                    in: RoundedRectangle(cornerRadius: 10)
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .stroke(selected ? color : Color.clear, lineWidth: 2)
+                                )
+                                .contentShape(Rectangle())
+                                .onTapGesture { emoji = candidate }
+                                .accessibilityAddTraits(selected ? .isSelected : [])
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+
+                Section("Color") {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 40))], spacing: 12) {
+                        ForEach(HabitPalette.names, id: \.self) { candidate in
+                            let selected = candidate == colorName
+                            Circle()
+                                .fill(HabitPalette.color(candidate))
+                                .frame(width: 32, height: 32)
+                                .overlay(
+                                    Circle().stroke(Color.primary, lineWidth: selected ? 3 : 0)
+                                )
+                                .contentShape(Circle())
+                                .onTapGesture { colorName = candidate }
+                                .accessibilityLabel(candidate)
+                                .accessibilityAddTraits(selected ? .isSelected : [])
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+
             .navigationTitle(isEditing ? "Edit Habit" : "New Habit")
             .navigationBarTitleDisplayMode(.inline)
             .onAppear {
