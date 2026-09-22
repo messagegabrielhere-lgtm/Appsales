@@ -45,6 +45,11 @@ struct DayKey: Hashable, Codable, Comparable, CustomStringConvertible {
         DayKey(year: year, month: month, day: 1)
     }
 
+    /// Calendar weekday number: 1 = Sunday through 7 = Saturday in the Gregorian calendar.
+    func weekday(calendar: Calendar = .current) -> Int {
+        calendar.component(.weekday, from: date(calendar: calendar))
+    }
+
     var description: String {
         String(format: "%04d-%02d-%02d", year, month, day)
     }

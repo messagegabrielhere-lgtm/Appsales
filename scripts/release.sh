@@ -1,7 +1,7 @@
 #!/bin/bash
 # One-command App Store release from a Mac that has Xcode signed in to your Apple ID.
 #
-#   scripts/release.sh                     # team MAP974T827, version 1.0.0, build number from the clock
+#   scripts/release.sh                     # team MAP974T827, version 2.0.0, build number from the clock
 #   scripts/release.sh MAP974T827 1.0.1    # explicit marketing version
 #   scripts/release.sh MAP974T827 1.0.1 42 # explicit build number
 #
@@ -12,7 +12,7 @@ cd "$(dirname "$0")/.."
 source scripts/_setup.sh
 
 TEAM_ID="${1:-MAP974T827}"
-VERSION="${2:-1.0.0}"
+VERSION="${2:-2.0.0}"
 BUILD="${3:-$(date +%Y%m%d%H%M)}"
 BUNDLE_ID="${BUNDLE_ID:-com.messagegabrielhere.kept}"
 ARCHIVE="build/Kept.xcarchive"

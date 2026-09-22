@@ -12,7 +12,12 @@ struct ContentView: View {
         NavigationStack(path: $path) {
             Group {
                 if store.habits.isEmpty {
-                    EmptyStateView { showingEditor = true }
+                    EmptyStateView(
+                        onAdd: { showingEditor = true },
+                        onPick: { habit in
+                            withAnimation(.snappy) { store.add(habit) }
+                        }
+                    )
                 } else {
                     habitList
                 }
@@ -54,31 +59,18 @@ struct ContentView: View {
             }
         }
         .onChange(of: scenePhase) { _, phase in
-            // Roll the date over if the app was left open across midnight.
             if phase == .active {
+                // The widget or Siri may have changed the file while we were in the background,
+                // and the date may have rolled over.
                 today = DayKey.today()
+                store.reloadFromDisk()
+                ReminderScheduler.refresh(habits: store.habits)
             }
+        }
+        .onChange(of: store.habits) { _, habits in
+            ReminderScheduler.refresh(habits: habits)
         }
         .onAppear(perform: openScreenFromLaunchArguments)
-    }
-
-    /// `-screen detail` or `-screen editor` (used by scripts/screenshots.sh together with
-    /// `-demo`) opens that screen on launch so screenshots need no tapping.
-    private func openScreenFromLaunchArguments() {
-        let args = CommandLine.arguments
-        guard let index = args.firstIndex(of: "-screen"), index + 1 < args.count else { return }
-        switch args[index + 1] {
-        case "detail":
-            if let first = store.habits.first {
-                path = [first.id]
-            }
-        case "editor":
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                showingEditor = true
-            }
-        default:
-            break
-        }
     }
 
     private var aboutButton: some View {
@@ -89,14 +81,18 @@ struct ContentView: View {
         }
     }
 
+    private var scheduledToday: [Habit] {
+        store.habits.filter { $0.isScheduled(on: today) }
+    }
+
     private var doneCount: Int {
-        store.habits.filter { $0.isCompleted(on: today) }.count
+        scheduledToday.filter { $0.isCompleted(on: today) }.count
     }
 
     private var habitList: some View {
         List {
             Section {
-                TodayProgressView(done: doneCount, total: store.habits.count, date: today.date())
+                TodayProgressView(done: doneCount, total: scheduledToday.count, date: today.date())
                     .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
             }
 
@@ -129,11 +125,30 @@ struct ContentView: View {
             Haptics.tap()
             return
         }
-        let streak = StreakCalculator.currentStreak(updated.completions, today: today)
-        if doneCount == store.habits.count {
+        let streak = StreakCalculator.currentStreak(updated.completions, today: today, schedule: updated.schedule)
+        if !scheduledToday.isEmpty && doneCount == scheduledToday.count {
             Haptics.success()
         } else {
             Haptics.checkIn(newStreak: streak)
+        }
+    }
+
+    /// `-screen detail` or `-screen editor` (used by scripts/screenshots.sh together with
+    /// `-demo`) opens that screen on launch so screenshots need no tapping.
+    private func openScreenFromLaunchArguments() {
+        let args = CommandLine.arguments
+        guard let index = args.firstIndex(of: "-screen"), index + 1 < args.count else { return }
+        switch args[index + 1] {
+        case "detail":
+            if let first = store.habits.first {
+                path = [first.id]
+            }
+        case "editor":
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                showingEditor = true
+            }
+        default:
+            break
         }
     }
 }
@@ -148,6 +163,11 @@ private struct TodayProgressView: View {
         total == 0 ? 0 : Double(done) / Double(total)
     }
 
+    private var label: String {
+        if total == 0 { return "Rest day" }
+        return done == total ? "All done" : "\(done) of \(total) done"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
@@ -155,9 +175,9 @@ private struct TodayProgressView: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Spacer()
-                Text(done == total ? "All done" : "\(done) of \(total) done")
+                Text(label)
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(done == total ? Color.accentColor : Color.secondary)
+                    .foregroundStyle(total > 0 && done == total ? Color.accentColor : Color.secondary)
                     .contentTransition(.numericText())
             }
             ProgressView(value: fraction)

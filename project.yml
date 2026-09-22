@@ -1,5 +1,4 @@
 # XcodeGen spec. Run `xcodegen generate` in this folder to produce Kept.xcodeproj.
-# Install XcodeGen with: brew install xcodegen
 name: Kept
 
 options:
@@ -12,7 +11,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.9"
-    MARKETING_VERSION: "1.0.0"
+    MARKETING_VERSION: "2.0.0"
     CURRENT_PROJECT_VERSION: "1"
     # Apple Developer Team ID (developer.apple.com > Membership details).
     DEVELOPMENT_TEAM: MAP974T827
@@ -43,6 +42,14 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
+    entitlements:
+      path: Kept/Kept.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.messagegabrielhere.kept
+    dependencies:
+      - target: KeptWidget
+        embed: true
     settings:
       base:
         # Must match the bundle ID on the App Store Connect app record.
@@ -56,6 +63,37 @@ targets:
     scheme:
       testTargets:
         - KeptTests
+
+  KeptWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: KeptWidget
+      - path: Kept/Models
+      - path: Kept/Logic
+      - path: Kept/Store
+      - path: Kept/Shared
+      - path: Kept/Views/HabitPalette.swift
+    info:
+      path: KeptWidget/Info.plist
+      properties:
+        CFBundleDisplayName: Kept
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: KeptWidget/KeptWidget.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.messagegabrielhere.kept
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.messagegabrielhere.kept.widget
+        PRODUCT_NAME: KeptWidget
+        TARGETED_DEVICE_FAMILY: "1,2"
+        GENERATE_INFOPLIST_FILE: NO
+        SKIP_INSTALL: YES
 
   KeptTests:
     type: bundle.unit-test

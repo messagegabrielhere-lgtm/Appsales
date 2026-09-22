@@ -16,3 +16,6 @@ Kept/Info.plist
 
 # Python
 __pycache__/
+KeptWidget/Info.plist
+Kept/Kept.entitlements
+KeptWidget/KeptWidget.entitlements
