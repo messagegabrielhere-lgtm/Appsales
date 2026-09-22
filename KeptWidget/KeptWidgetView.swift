@@ -2,9 +2,17 @@ import AppIntents
 import SwiftUI
 import WidgetKit
 
+struct KeptEntry: TimelineEntry {
+    let date: Date
+    let habits: [Habit]
+    let today: DayKey
+}
+
+/// Renders one widget family. The widget extension passes the family from the environment;
+/// the app renders it directly for the widget showcase screenshot.
 struct KeptWidgetView: View {
-    @Environment(\.widgetFamily) private var family
     let entry: KeptEntry
+    let family: WidgetFamily
 
     private var scheduled: [Habit] { entry.habits.filter { $0.isScheduled(on: entry.today) } }
     private var done: Int { scheduled.filter { $0.isCompleted(on: entry.today) }.count }
@@ -136,8 +144,3 @@ struct KeptWidgetView: View {
     }
 }
 
-#Preview(as: .systemMedium) {
-    KeptWidget()
-} timeline: {
-    KeptEntry(date: Date(), habits: HabitStore.preview().habits, today: DayKey.today())
-}

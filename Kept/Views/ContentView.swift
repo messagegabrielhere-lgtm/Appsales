@@ -5,6 +5,7 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var showingEditor = false
     @State private var showingAbout = false
+    @State private var showingWidgetShowcase = false
     @State private var today = DayKey.today()
     @State private var path: [UUID] = []
 
@@ -53,6 +54,9 @@ struct ContentView: View {
             }
             .sheet(isPresented: $showingAbout) {
                 AboutView()
+            }
+            .fullScreenCover(isPresented: $showingWidgetShowcase) {
+                WidgetShowcaseView(habits: store.habits)
             }
             .navigationDestination(for: UUID.self) { id in
                 HabitDetailView(habitID: id)
@@ -146,6 +150,10 @@ struct ContentView: View {
         case "editor":
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 showingEditor = true
+            }
+        case "widgets":
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                showingWidgetShowcase = true
             }
         default:
             break

@@ -2,12 +2,6 @@ import AppIntents
 import SwiftUI
 import WidgetKit
 
-struct KeptEntry: TimelineEntry {
-    let date: Date
-    let habits: [Habit]
-    let today: DayKey
-}
-
 struct KeptProvider: TimelineProvider {
     func placeholder(in context: Context) -> KeptEntry {
         KeptEntry(date: Date(), habits: HabitStore.preview().habits, today: DayKey.today())
@@ -35,7 +29,7 @@ struct KeptWidget: Widget {
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: KeptProvider()) { entry in
-            KeptWidgetView(entry: entry)
+            KeptWidgetEntryView(entry: entry)
                 .containerBackground(.fill.tertiary, for: .widget)
         }
         .configurationDisplayName("Today's Habits")
@@ -45,4 +39,19 @@ struct KeptWidget: Widget {
             .accessoryCircular, .accessoryRectangular, .accessoryInline,
         ])
     }
+}
+
+private struct KeptWidgetEntryView: View {
+    @Environment(\.widgetFamily) private var family
+    let entry: KeptEntry
+
+    var body: some View {
+        KeptWidgetView(entry: entry, family: family)
+    }
+}
+
+#Preview(as: .systemMedium) {
+    KeptWidget()
+} timeline: {
+    KeptEntry(date: Date(), habits: HabitStore.preview().habits, today: DayKey.today())
 }

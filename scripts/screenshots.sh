@@ -1,8 +1,9 @@
 #!/bin/bash
 # Produces the App Store screenshot sets Apple requires, ready to drag into App Store Connect:
 #
-#   build/screenshots/iphone-6.5-inch/   list.jpg  detail.jpg  editor.jpg   (1284 x 2778)
-#   build/screenshots/ipad-13-inch/      list.jpg  detail.jpg  editor.jpg   (2048 x 2732)
+#   build/screenshots/iphone-6.5-inch/   widgets list detail editor .jpg   (1284 x 2778)
+#   build/screenshots/ipad-13-inch/      widgets list detail editor .jpg   (2048 x 2732)
+#   build/screenshots/marketing/...      the same with captions, if Pillow is installed
 #
 #   scripts/screenshots.sh
 set -euo pipefail
@@ -52,7 +53,7 @@ capture_set() {
   xcrun simctl bootstatus "$udid" -b >/dev/null
   xcrun simctl status_bar "$udid" override --time "9:41" --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3
   xcrun simctl install "$udid" "$APP"
-  for screen in list detail editor; do
+  for screen in widgets list detail editor; do
     xcrun simctl terminate "$udid" "$BUNDLE_ID" 2>/dev/null || true
     xcrun simctl launch "$udid" "$BUNDLE_ID" -demo -screen "$screen" >/dev/null
     sleep 4
@@ -70,5 +71,13 @@ capture_set() {
 capture_set "$IPHONE" "iphone-6.5-inch" 1284 2778
 capture_set "$IPAD" "ipad-13-inch" 2048 2732
 
-open build/screenshots
-say "Done. Drag iphone-6.5-inch/*.jpg into the iPhone 6.5\" tab and ipad-13-inch/*.jpg into the iPad 13\" tab."
+if python3 -c "import PIL" 2>/dev/null; then
+  say "Adding captions"
+  python3 scripts/marketing/compose.py
+  FINAL="build/screenshots/marketing"
+else
+  echo "Pillow is not installed, so no captions were added. Optional: pip3 install pillow, then run python3 scripts/marketing/compose.py"
+  FINAL="build/screenshots"
+fi
+[ -n "${CI:-}" ] || open "$FINAL"
+say "Done. Upload $FINAL/iphone-6.5-inch/*.jpg to the iPhone 6.5\" tab and $FINAL/ipad-13-inch/*.jpg to the iPad 13\" tab, in file order."

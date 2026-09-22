@@ -1,0 +1,33 @@
+name: App Store screenshots
+
+# Captures the app in the iOS Simulator, adds captions, and publishes the finished
+# App Store screenshot sets as a downloadable artifact. No Mac needed.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  screenshots:
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Pillow
+        run: pip install --quiet pillow
+
+      - name: Capture and caption
+        run: scripts/screenshots.sh
+        env:
+          CI: "1"
+
+      - name: Upload screenshot sets
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-store-screenshots
+          path: build/screenshots/marketing
+          if-no-files-found: error

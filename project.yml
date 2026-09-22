@@ -26,6 +26,7 @@ targets:
     platform: iOS
     sources:
       - path: Kept
+      - path: KeptWidget/KeptWidgetView.swift
     info:
       path: Kept/Info.plist
       properties:
