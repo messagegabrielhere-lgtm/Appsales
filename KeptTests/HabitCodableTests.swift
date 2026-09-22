@@ -17,7 +17,13 @@ final class HabitCodableTests: XCTestCase {
     }
 
     func testRoundTripKeepsScheduleAndReminder() throws {
-        let original = Habit(name: "Read", scheduledWeekdays: Habit.weekdays, reminderMinutes: 21 * 60 + 15)
+        // ISO 8601 drops sub-second precision, so use a whole-second timestamp.
+        let original = Habit(
+            name: "Read",
+            createdAt: Date(timeIntervalSince1970: 1_790_000_000),
+            scheduledWeekdays: Habit.weekdays,
+            reminderMinutes: 21 * 60 + 15
+        )
         let data = try JSONEncoder.kept.encode([original])
         let decoded = try JSONDecoder.kept.decode([Habit].self, from: data)
         XCTAssertEqual(decoded, [original])
