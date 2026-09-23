@@ -72,7 +72,8 @@ targets:
       - path: KeptWidget
       - path: Kept/Models
       - path: Kept/Logic
-      - path: Kept/Store
+      - path: Kept/Store/HabitFileStore.swift
+      - path: Kept/Store/HabitStore.swift
       - path: Kept/Shared
       - path: Kept/Views/HabitPalette.swift
     info:

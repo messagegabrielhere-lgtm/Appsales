@@ -13,6 +13,7 @@ struct KeptApp: App {
 
     /// Launching with the `-demo` argument (used by scripts/screenshots.sh) shows sample
     /// habits in memory without touching the real data file.
+    @MainActor
     private static func makeStore() -> HabitStore {
         if CommandLine.arguments.contains("-demo") {
             return HabitStore.preview()

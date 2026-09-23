@@ -4,7 +4,7 @@ import WidgetKit
 
 struct KeptProvider: TimelineProvider {
     func placeholder(in context: Context) -> KeptEntry {
-        KeptEntry(date: Date(), habits: HabitStore.preview().habits, today: DayKey.today())
+        KeptEntry(date: Date(), habits: HabitStore.demoHabits(), today: DayKey.today())
     }
 
     func getSnapshot(in context: Context, completion: @escaping (KeptEntry) -> Void) {
@@ -20,7 +20,7 @@ struct KeptProvider: TimelineProvider {
     }
 
     private func currentEntry() -> KeptEntry {
-        KeptEntry(date: Date(), habits: HabitStore().habits, today: DayKey.today())
+        KeptEntry(date: Date(), habits: HabitFileStore.load(), today: DayKey.today())
     }
 }
 
@@ -53,5 +53,5 @@ private struct KeptWidgetEntryView: View {
 #Preview(as: .systemMedium) {
     KeptWidget()
 } timeline: {
-    KeptEntry(date: Date(), habits: HabitStore.preview().habits, today: DayKey.today())
+    KeptEntry(date: Date(), habits: HabitStore.demoHabits(), today: DayKey.today())
 }

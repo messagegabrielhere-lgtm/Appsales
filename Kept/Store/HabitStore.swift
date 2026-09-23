@@ -1,37 +1,23 @@
-import Foundation
 import Combine
+import Foundation
 import WidgetKit
 
-/// Owns the list of habits and persists it as a single JSON file in the shared App Group
-/// container, so the widget reads and writes the same data. Everything stays on-device.
-/// There is no network code anywhere in this app.
+/// The app's observable view of the habits file. Confined to the main actor because SwiftUI
+/// observes it; all file work is delegated to `HabitFileStore`, which the widget and App
+/// Intents use directly from their own threads.
+@MainActor
 final class HabitStore: ObservableObject {
     @Published private(set) var habits: [Habit] = []
 
     private let fileURL: URL?
 
     /// - Parameter fileURL: where to persist. Pass `nil` for an in-memory store (previews, tests).
-    init(fileURL: URL? = HabitStore.defaultFileURL) {
+    init(fileURL: URL? = HabitFileStore.fileURL) {
         self.fileURL = fileURL
-        migrateLegacyFileIfNeeded()
-        load()
-    }
-
-    /// Shared container when the App Group entitlement is present, otherwise the app's own
-    /// Application Support folder (which is where 1.0 kept its data).
-    static var defaultFileURL: URL {
-        if let container = AppGroup.containerURL {
-            return container.appendingPathComponent("habits.json")
+        if let fileURL {
+            HabitFileStore.migrateLegacyFileIfNeeded(to: fileURL)
+            habits = HabitFileStore.load(from: fileURL)
         }
-        return legacyFileURL
-    }
-
-    static var legacyFileURL: URL {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? FileManager.default.temporaryDirectory
-        return base
-            .appendingPathComponent("Kept", isDirectory: true)
-            .appendingPathComponent("habits.json")
     }
 
     // MARK: Mutations
@@ -75,52 +61,29 @@ final class HabitStore: ObservableObject {
     /// Re-reads the file. The app calls this when it becomes active, because the widget or a
     /// Siri shortcut may have changed the data while the app was in the background.
     func reloadFromDisk() {
-        load()
-    }
-
-    // MARK: Persistence
-
-    private func load() {
-        guard let url = fileURL, let data = try? Data(contentsOf: url) else { return }
-        do {
-            let loaded = try JSONDecoder.kept.decode([Habit].self, from: data)
-            if loaded != habits {
-                habits = loaded
-            }
-        } catch {
-            // A corrupt file should not brick the app. Start empty; the next save overwrites it.
-            habits = []
+        guard let fileURL else { return }
+        let loaded = HabitFileStore.load(from: fileURL)
+        if loaded != habits {
+            habits = loaded
         }
     }
 
     private func save() {
-        guard let url = fileURL else { return }
-        do {
-            try FileManager.default.createDirectory(
-                at: url.deletingLastPathComponent(),
-                withIntermediateDirectories: true
-            )
-            let data = try JSONEncoder.kept.encode(habits)
-            try data.write(to: url, options: [.atomic, .completeFileProtection])
-        } catch {
-            assertionFailure("Kept: failed to save habits: \(error)")
-        }
+        guard let fileURL else { return }
+        HabitFileStore.save(habits, to: fileURL)
         WidgetCenter.shared.reloadAllTimelines()
-    }
-
-    /// 1.0 stored the file in Application Support. Copy it into the shared container once.
-    private func migrateLegacyFileIfNeeded() {
-        guard let url = fileURL, url != HabitStore.legacyFileURL else { return }
-        let manager = FileManager.default
-        guard !manager.fileExists(atPath: url.path), manager.fileExists(atPath: HabitStore.legacyFileURL.path) else { return }
-        try? manager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try? manager.copyItem(at: HabitStore.legacyFileURL, to: url)
     }
 
     // MARK: Previews and screenshots
 
     static func preview() -> HabitStore {
         let store = HabitStore(fileURL: nil)
+        store.habits = HabitStore.demoHabits()
+        return store
+    }
+
+    /// Sample data for previews, the widget gallery, and screenshots.
+    nonisolated static func demoHabits() -> [Habit] {
         let today = DayKey.today()
 
         /// Deterministic pseudo-random miss pattern so screenshots are reproducible.
@@ -137,7 +100,7 @@ final class HabitStore: ObservableObject {
             return result
         }
 
-        store.habits = [
+        return [
             Habit(name: "Drink water", emoji: "💧", colorName: "blue",
                   completions: days(count: 330, hitRate: 100, skipping: [12, 40, 41, 75, 110, 150, 151, 200, 260, 300]),
                   reminderMinutes: 9 * 60),
@@ -151,7 +114,6 @@ final class HabitStore: ObservableObject {
             Habit(name: "No phone in bed", emoji: "📵", colorName: "indigo",
                   completions: days(count: 45, hitRate: 100)),
         ]
-        return store
     }
 }
 

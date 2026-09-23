@@ -1,6 +1,7 @@
 import XCTest
 @testable import Kept
 
+@MainActor
 final class HabitStoreTests: XCTestCase {
     private var fileURL: URL!
 
@@ -80,5 +81,20 @@ final class HabitStoreTests: XCTestCase {
         try Data("{not json".utf8).write(to: fileURL)
         let store = HabitStore(fileURL: fileURL)
         XCTAssertTrue(store.habits.isEmpty)
+    }
+
+    /// The widget writes through HabitFileStore while the app is backgrounded; coming back
+    /// to the foreground must pick those changes up.
+    func testReloadFromDiskSeesExternalWrites() {
+        let today = DayKey.today()
+        let habit = Habit(name: "Water")
+        let store = HabitStore(fileURL: fileURL)
+        store.add(habit)
+
+        HabitFileStore.toggle(habitID: habit.id, on: today, at: fileURL)
+        XCTAssertFalse(store.habits[0].isCompleted(on: today))
+
+        store.reloadFromDisk()
+        XCTAssertTrue(store.habits[0].isCompleted(on: today))
     }
 }

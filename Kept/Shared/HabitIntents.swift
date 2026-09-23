@@ -1,5 +1,6 @@
 import AppIntents
 import Foundation
+import WidgetKit
 
 /// A habit as Siri, Shortcuts, and interactive widgets see it.
 struct HabitEntity: AppEntity {
@@ -23,14 +24,14 @@ struct HabitEntity: AppEntity {
 
 struct HabitQuery: EntityQuery {
     func entities(for identifiers: [UUID]) async throws -> [HabitEntity] {
-        let habits = HabitStore().habits
-        return identifiers.compactMap { id in
-            habits.first { $0.id == id }.map { HabitEntity($0) }
-        }
+        let wanted = Set(identifiers)
+        return HabitFileStore.load()
+            .filter { wanted.contains($0.id) }
+            .map(HabitEntity.init)
     }
 
     func suggestedEntities() async throws -> [HabitEntity] {
-        HabitStore().habits.map { HabitEntity($0) }
+        HabitFileStore.load().map(HabitEntity.init)
     }
 }
 
@@ -49,10 +50,8 @@ struct ToggleHabitIntent: AppIntent {
     }
 
     func perform() async throws -> some IntentResult {
-        let store = HabitStore()
-        if let target = store.habit(id: habit.id) {
-            store.toggle(target, on: DayKey.today())
-        }
+        HabitFileStore.toggle(habitID: habit.id, on: DayKey.today())
+        WidgetCenter.shared.reloadAllTimelines()
         return .result()
     }
 }
@@ -68,17 +67,18 @@ struct CompleteHabitIntent: AppIntent {
     init() {}
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let store = HabitStore()
         let today = DayKey.today()
-        guard let target = store.habit(id: habit.id) else {
+        var habits = HabitFileStore.load()
+        guard let index = habits.firstIndex(where: { $0.id == habit.id }) else {
             return .result(dialog: IntentDialog("I couldn't find that habit in Kept."))
         }
-        if !target.isCompleted(on: today) {
-            store.toggle(target, on: today)
+        if !habits[index].isCompleted(on: today) {
+            habits[index].toggle(today)
+            HabitFileStore.save(habits)
+            WidgetCenter.shared.reloadAllTimelines()
         }
-        let completions = store.habit(id: habit.id)?.completions ?? []
-        let streak = StreakCalculator.currentStreak(completions, today: today, schedule: target.schedule)
-        let name = target.name
-        return .result(dialog: IntentDialog("\(name) done. That's a \(streak) day streak."))
+        let updated = habits[index]
+        let streak = StreakCalculator.currentStreak(updated.completions, today: today, schedule: updated.schedule)
+        return .result(dialog: IntentDialog("\(updated.name) done. That's a \(streak) day streak."))
     }
 }

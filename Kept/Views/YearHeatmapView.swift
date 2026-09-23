@@ -56,10 +56,15 @@ struct YearHeatmapView: View {
         .background(
             GeometryReader { geometry in
                 Color.clear
-                    .onAppear { availableWidth = geometry.size.width }
-                    .onChange(of: geometry.size.width) { _, width in availableWidth = width }
+                    .preference(key: HeatmapWidthKey.self, value: geometry.size.width)
             }
         )
+        .onPreferenceChange(HeatmapWidthKey.self) { width in
+            // Preference changes are delivered after layout, so this cannot re-enter it.
+            if abs(width - availableWidth) > 0.5 {
+                availableWidth = width
+            }
+        }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Year overview, \(completions.count) days completed")
     }
@@ -79,6 +84,13 @@ struct YearHeatmapView: View {
         return RoundedRectangle(cornerRadius: size * 0.22)
             .fill(fill)
             .frame(width: size, height: size)
+    }
+}
+
+private struct HeatmapWidthKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }
 
