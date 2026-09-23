@@ -117,10 +117,41 @@ final class HabitStore: ObservableObject {
     }
 }
 
+/// Date encoding for the habits file.
+///
+/// Foundation's plain `.iso8601` strategy writes whole seconds, so a `Date` does not survive
+/// a save-and-load round trip unchanged. That made saved habits compare unequal to the ones
+/// they were built from. Encoding keeps fractional seconds; decoding accepts both spellings,
+/// because files written by version 1.0 are on real devices and have no fractional part.
+enum KeptDateCoding {
+    static let fractional: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+
+    static let wholeSeconds: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
+
+    static func string(from date: Date) -> String {
+        fractional.string(from: date)
+    }
+
+    static func date(from raw: String) -> Date? {
+        fractional.date(from: raw) ?? wholeSeconds.date(from: raw)
+    }
+}
+
 extension JSONEncoder {
     static var kept: JSONEncoder {
         let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
+        encoder.dateEncodingStrategy = .custom { date, encoder in
+            var container = encoder.singleValueContainer()
+            try container.encode(KeptDateCoding.string(from: date))
+        }
         encoder.outputFormatting = [.sortedKeys]
         return encoder
     }
@@ -129,7 +160,19 @@ extension JSONEncoder {
 extension JSONDecoder {
     static var kept: JSONDecoder {
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let raw = try container.decode(String.self)
+            guard let date = KeptDateCoding.date(from: raw) else {
+                throw DecodingError.dataCorrupted(
+                    DecodingError.Context(
+                        codingPath: decoder.codingPath,
+                        debugDescription: "Not an ISO 8601 date: \(raw)"
+                    )
+                )
+            }
+            return date
+        }
         return decoder
     }
 }

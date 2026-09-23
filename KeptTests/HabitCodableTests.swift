@@ -17,16 +17,34 @@ final class HabitCodableTests: XCTestCase {
     }
 
     func testRoundTripKeepsScheduleAndReminder() throws {
-        // ISO 8601 drops sub-second precision, so use a whole-second timestamp.
         let original = Habit(
             name: "Read",
-            createdAt: Date(timeIntervalSince1970: 1_790_000_000),
             scheduledWeekdays: Habit.weekdays,
             reminderMinutes: 21 * 60 + 15
         )
         let data = try JSONEncoder.kept.encode([original])
         let decoded = try JSONDecoder.kept.decode([Habit].self, from: data)
         XCTAssertEqual(decoded, [original])
+    }
+
+    /// `Date()` carries sub-second precision. If encoding drops it, a saved habit compares
+    /// unequal to the one it was built from, which is subtle because printed dates show only
+    /// whole seconds.
+    func testCreatedAtSurvivesRoundTripToTheMillisecond() throws {
+        let original = Habit(name: "Now")
+        let decoded = try JSONDecoder.kept.decode([Habit].self, from: JSONEncoder.kept.encode([original]))
+        XCTAssertEqual(decoded[0].createdAt.timeIntervalSinceReferenceDate,
+                       original.createdAt.timeIntervalSinceReferenceDate,
+                       accuracy: 0.0005)
+        XCTAssertEqual(decoded, [original])
+    }
+
+    func testRejectsANonDateString() {
+        let json = """
+        [{"colorName":"teal","completions":[],"createdAt":"yesterday","emoji":"✅",
+          "id":"6F9619FF-8B86-D011-B42D-00C04FC964FF","name":"X"}]
+        """
+        XCTAssertThrowsError(try JSONDecoder.kept.decode([Habit].self, from: Data(json.utf8)))
     }
 
     func testEmptyScheduleBehavesAsEveryDay() {
