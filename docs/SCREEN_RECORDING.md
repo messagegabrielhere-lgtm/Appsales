@@ -8,18 +8,36 @@ special cases in Apple's list apply. A single continuous take of about a minute 
 
 ## Getting the app onto your phone
 
-The build you already uploaded is in App Store Connect, so TestFlight is the quickest route and
-is what Apple itself recommends.
+### Fastest: straight from the Mac over the cable
+
+No TestFlight, no App Store Connect, no invite email. Plug the phone in with a cable that
+carries data, unlock it, and tap **Trust** if the phone asks. Then:
+
+```sh
+cd ~/Appsales
+git pull
+scripts/install_on_phone.sh
+```
+
+The script finds the phone, registers it with your developer account, builds, signs, and
+installs. If it cannot see the phone it prints the five things to check, in order.
+
+Afterwards the first launch will refuse to open and mention an untrusted developer. That is
+expected for a build installed this way. On the phone go to **Settings > General > VPN &
+Device Management**, tap your Apple ID, and tap **Trust**. Then open the app normally.
+
+Apple does not care how the app got onto the device. The recording just has to be a real
+phone rather than the simulator.
+
+### Fallback: TestFlight
+
+If the cable route will not work, for example because you have no usable cable:
 
 1. On the iPhone, install **TestFlight** from the App Store.
 2. In App Store Connect, open the app and click the **TestFlight** tab.
-3. Under **Internal Testing**, create a group if there is none, add yourself as a tester, and
-   attach the build.
-4. Accept the email invitation on the phone and install Kept through TestFlight.
-
-If TestFlight gives you trouble, plug the phone into the Mac, open `Kept.xcodeproj`, choose your
-iPhone as the run destination, and press Run. The first launch needs you to trust the developer
-certificate on the phone under Settings, General, VPN & Device Management.
+3. Under **Internal Testing**, click **+**, name the group, and add yourself as a tester.
+4. In that group click the **Builds** tab, click **+**, and pick the uploaded build.
+5. Accept the email invitation on the phone and install through TestFlight.
 
 ## Recording
 
