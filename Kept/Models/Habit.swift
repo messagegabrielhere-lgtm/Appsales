@@ -31,7 +31,8 @@ struct Habit: Identifiable, Codable, Equatable {
         self.name = name
         self.emoji = emoji
         self.colorName = colorName
-        self.createdAt = createdAt
+        // Stored at the resolution the file keeps, so a saved habit equals this one.
+        self.createdAt = KeptDateCoding.canonical(createdAt)
         self.completions = completions
         self.scheduledWeekdays = scheduledWeekdays
         self.reminderMinutes = reminderMinutes
@@ -74,7 +75,7 @@ struct Habit: Identifiable, Codable, Equatable {
         name = try container.decode(String.self, forKey: .name)
         emoji = try container.decode(String.self, forKey: .emoji)
         colorName = try container.decode(String.self, forKey: .colorName)
-        createdAt = try container.decode(Date.self, forKey: .createdAt)
+        createdAt = KeptDateCoding.canonical(try container.decode(Date.self, forKey: .createdAt))
         completions = try container.decode(Set<DayKey>.self, forKey: .completions)
         scheduledWeekdays = try container.decodeIfPresent(Set<Int>.self, forKey: .scheduledWeekdays) ?? Habit.everyDay
         reminderMinutes = try container.decodeIfPresent(Int.self, forKey: .reminderMinutes)

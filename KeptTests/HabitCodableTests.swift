@@ -27,16 +27,24 @@ final class HabitCodableTests: XCTestCase {
         XCTAssertEqual(decoded, [original])
     }
 
-    /// `Date()` carries sub-second precision. If encoding drops it, a saved habit compares
-    /// unequal to the one it was built from, which is subtle because printed dates show only
-    /// whole seconds.
-    func testCreatedAtSurvivesRoundTripToTheMillisecond() throws {
+    /// `Date()` carries finer precision than the file format stores, so `Habit` canonicalises
+    /// `createdAt` on the way in. Without that a saved habit never compares equal to the one it
+    /// came from, which is easy to miss because printed dates show only whole seconds.
+    func testCreatedAtSurvivesRoundTripExactly() throws {
         let original = Habit(name: "Now")
         let decoded = try JSONDecoder.kept.decode([Habit].self, from: JSONEncoder.kept.encode([original]))
-        XCTAssertEqual(decoded[0].createdAt.timeIntervalSinceReferenceDate,
-                       original.createdAt.timeIntervalSinceReferenceDate,
-                       accuracy: 0.0005)
+        XCTAssertEqual(decoded[0].createdAt, original.createdAt)
         XCTAssertEqual(decoded, [original])
+    }
+
+    /// A second round trip must not drift further.
+    func testRoundTripIsIdempotent() throws {
+        var habits = [Habit(name: "Now"), Habit(name: "Later", scheduledWeekdays: Habit.weekdays)]
+        for _ in 0..<3 {
+            habits = try JSONDecoder.kept.decode([Habit].self, from: JSONEncoder.kept.encode(habits))
+        }
+        let again = try JSONDecoder.kept.decode([Habit].self, from: JSONEncoder.kept.encode(habits))
+        XCTAssertEqual(again, habits)
     }
 
     func testRejectsANonDateString() {
