@@ -54,7 +54,7 @@ upload a signed build to App Store Connect without owning a Mac, follow
 [docs/RELEASE.md](docs/RELEASE.md) and run the **Release to App Store Connect** workflow.
 
 See [docs/APP_STORE_SUBMISSION.md](docs/APP_STORE_SUBMISSION.md) for the step-by-step checklist,
-[docs/APP_STORE_LISTING.md](docs/APP_STORE_LISTING.md) for ready-to-paste store copy, and
+[docs/listing/](docs/listing/) for ready-to-paste store copy, and
 [docs/PRIVACY_POLICY.md](docs/PRIVACY_POLICY.md) for the policy page Apple requires you to host.
 
 ## Layout

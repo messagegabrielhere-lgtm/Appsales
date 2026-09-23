@@ -57,7 +57,7 @@ country and VAT.
    This is true; the app has no network code.
 4. **App Information**: category **Productivity**, secondary **Health & Fitness**. Age rating:
    answer no to everything, which yields 4+.
-5. Paste the copy from `docs/APP_STORE_LISTING.md` into the version page.
+5. Paste the copy from `docs/listing/v2.0.md` into the version page.
 6. Privacy Policy URL: host `docs/PRIVACY_POLICY.md` somewhere public. GitHub Pages on this
    repo works: Settings > Pages > Deploy from branch, then use
    `https://messagegabrielhere-lgtm.github.io/Appsales/docs/privacy/`.

@@ -77,7 +77,7 @@ In this repository: **Settings > Secrets and variables > Actions > New repositor
    (10 to 30 minutes). You may get an email about "Missing Compliance"; the project already
    declares no encryption, so that email should not arrive, but if it does answer **No**.
 4. On the **1.0 Prepare for Submission** page, pick the build, fill in the listing from
-   `docs/APP_STORE_LISTING.md`, add screenshots (see `docs/APP_STORE_SUBMISSION.md`), and
+   `docs/listing/v2.0.md`, add screenshots (see `docs/APP_STORE_SUBMISSION.md`), and
    press **Add for Review**.
 
 ## Troubleshooting
