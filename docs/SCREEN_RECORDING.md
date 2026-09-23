@@ -39,6 +39,32 @@ If the cable route will not work, for example because you have no usable cable:
 4. In that group click the **Builds** tab, click **+**, and pick the uploaded build.
 5. Accept the email invitation on the phone and install through TestFlight.
 
+#### "TestFlight is empty and wants a redemption code"
+
+That is the empty state, not an error. Internal testing never uses a redemption code; the
+app simply appears once an invite reaches the Apple ID the phone is signed in with. Two
+things cause it to stay empty.
+
+**The App Store Connect side is not finished.** Adding yourself as a tester and attaching the
+build are two separate clicks inside the group, on two different tabs. Open the group and
+confirm both the Testers tab lists you and the Builds tab lists a build. A group with a
+tester but no build sends nothing.
+
+**The Apple ID does not match.** TestFlight uses the Apple ID signed in for purchases, which
+is often a personal account, not the developer one. On the phone open Settings, tap your name,
+then **Media & Purchases**, then **View Account**, and note the email. It must match a user in
+App Store Connect under **Users and Access**.
+
+If they differ, add the phone's Apple ID rather than signing the phone out:
+
+1. App Store Connect, **Users and Access**, click **+**.
+2. Enter the phone's Apple ID email, give it the **Developer** role, and invite.
+3. Accept that invitation from the phone's inbox.
+4. Back in **TestFlight > Internal Testing > your group > Testers**, click **+** and add the
+   newly invited user.
+
+Allow a few minutes, then pull down to refresh in the TestFlight app.
+
 ## Recording
 
 Turn on the recording control once: Settings, Control Center, add **Screen Recording**.
