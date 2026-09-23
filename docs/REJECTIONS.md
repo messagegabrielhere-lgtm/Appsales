@@ -7,6 +7,18 @@ device and iOS version and often attaches a screenshot or a crash log.
 
 Start there every time. The guideline number alone is not enough to act on.
 
+## Guideline 2.1 Information Needed: New App Submission
+
+Sent to developer accounts with little or no review history. It is a questionnaire, not a
+defect report, and it does not require a new build. Apple asks for a screen recording made on
+a physical device plus written answers about purpose, setup, external services, regional
+differences, and regulated material.
+
+The answers are written and ready to paste in `docs/REVIEW_REPLY.md`, and the recording shot
+list is in `docs/SCREEN_RECORDING.md`. Post the answers in Resolution Center and also into
+**App Review Information > Notes**, which is where Apple asks for them so later submissions
+carry the context. They are already in the App Review notes section of the listing copy.
+
 ## Guideline 2.1 Performance: App Completeness
 
 By far the most common first-submission rejection. It covers four different problems, and
