@@ -1,8 +1,8 @@
 # Kept privacy policy
 
-Last updated: September 20, 2026
+Last updated: September 28, 2026
 
-Kept is a habit tracker for iPhone and iPad.
+Kept is a daily log for food, drinks, activity, supplements and how you feel, for iPhone and iPad.
 
 ## What Kept collects
 
@@ -14,6 +14,15 @@ The habits you create and the days you mark complete are stored in a single file
 Kept's private container on your device. The file is protected by iOS data protection and is
 included in your device backups if you have backups enabled. Kept has no servers and never
 connects to the internet.
+
+## Sharing with AI assistants
+
+Kept never contacts an AI service or any other server. The Ask AI screen builds a text
+summary of your log on your device. Nothing leaves your phone unless you tap Copy for AI or
+Share to an App. Copy places the text on your clipboard; Share hands it to the app you pick in
+the iOS share sheet. From then on, that app handles the text under its own privacy policy.
+
+Your About Me text is only included when the Include About Me switch is on.
 
 ## Third parties
 

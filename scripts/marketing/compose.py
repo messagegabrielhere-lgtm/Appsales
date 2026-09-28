@@ -14,10 +14,11 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 ROOT = Path(__file__).resolve().parent.parent.parent / "build" / "screenshots"
 
 CAPTIONS = [
-    ("widgets", "Check off from your home screen.", "Interactive widgets. Lock screen too."),
-    ("list", "Pay once. Keep forever.", "No subscription. No account. No ads."),
-    ("detail", "See your whole year.", "Streaks, stats, and a 12-month heatmap."),
-    ("editor", "Rest days never break a streak.", "Weekdays only, or any days you choose."),
+    ("today", "Food, drinks and supplements.", "Your whole day in one place."),
+    ("log", "Type it the way you'd say it.", "No calorie lookups. Your AI does the maths."),
+    ("ai", "Ask your AI what it means.", "One tap turns your week into a ready prompt."),
+    ("widgets", "Log from your home screen.", "Water in one tap. Supplements too."),
+    ("detail", "Never miss a supplement.", "Reminders, streaks and a year at a glance."),
 ]
 
 TOP_LEFT = (0x0F, 0x76, 0x6E)

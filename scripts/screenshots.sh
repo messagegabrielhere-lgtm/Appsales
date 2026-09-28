@@ -1,8 +1,8 @@
 #!/bin/bash
 # Produces the App Store screenshot sets Apple requires, ready to drag into App Store Connect:
 #
-#   build/screenshots/iphone-6.5-inch/   widgets list detail editor .jpg   (1284 x 2778)
-#   build/screenshots/ipad-13-inch/      widgets list detail editor .jpg   (2048 x 2732)
+#   build/screenshots/iphone-6.5-inch/   today log ai widgets detail .jpg   (1284 x 2778)
+#   build/screenshots/ipad-13-inch/      today log ai widgets detail .jpg   (2048 x 2732)
 #   build/screenshots/marketing/...      the same with captions, if Pillow is installed
 #
 #   scripts/screenshots.sh
@@ -53,7 +53,7 @@ capture_set() {
   xcrun simctl bootstatus "$udid" -b >/dev/null
   xcrun simctl status_bar "$udid" override --time "9:41" --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3
   xcrun simctl install "$udid" "$APP"
-  for screen in widgets list detail editor; do
+  for screen in today log ai widgets detail; do
     xcrun simctl terminate "$udid" "$BUNDLE_ID" 2>/dev/null || true
     xcrun simctl launch "$udid" "$BUNDLE_ID" -demo -screen "$screen" >/dev/null
     sleep 4
