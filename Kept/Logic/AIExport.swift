@@ -60,10 +60,10 @@ enum AIPromptTemplate: String, CaseIterable, Identifiable {
     var subtitle: String {
         switch self {
         case .patterns: return "What seems to lift or drain you, with experiments to test it."
-        case .nutrition: return "Calories, protein, carbs, fat and fibre per day, gaps flagged."
+        case .nutrition: return "Calories, protein, carbs, fat and fiber per day, gaps flagged."
         case .supplements: return "Consistency, timing, and questions for your pharmacist."
         case .hydration: return "Fluids, caffeine and alcohol per day, and their timing."
-        case .activity: return "What you did, how you fuelled it, how you felt after."
+        case .activity: return "What you did, how you fueled it, how you felt after."
         case .custom: return "Anything you want to know about your log."
         }
     }
@@ -102,7 +102,7 @@ enum AIPromptTemplate: String, CaseIterable, Identifiable {
             return """
             Please estimate my nutrition from the food and drink log below.
 
-            1. For each day, estimate calories, protein, carbohydrate, fat and fibre. Where I \
+            1. For each day, estimate calories, protein, carbohydrate, fat and fiber. Where I \
             didn't give a portion, assume a typical one and state the assumption.
             2. Show a compact table per day, then the average across the period.
             3. Name the two or three biggest gaps or excesses compared with general adult \
@@ -115,7 +115,7 @@ enum AIPromptTemplate: String, CaseIterable, Identifiable {
             Please review my supplements and routines, listed as my daily checklist below, and \
             how consistently I took them.
 
-            1. For each item, summarise how consistently I took it over the period.
+            1. For each item, summarize how consistently I took it over the period.
             2. Comment on timing: which are commonly better taken with food, apart from each \
             other, or at a particular time of day, and whether my timing seems to match.
             3. Flag any combinations, including with anything in my food and drink log, that \
@@ -127,7 +127,7 @@ enum AIPromptTemplate: String, CaseIterable, Identifiable {
             """
         case .hydration:
             return """
-            Please analyse my drinks from the log below.
+            Please analyze my drinks from the log below.
 
             1. Estimate my total fluid per day and how much of it was water.
             2. Estimate caffeine and alcohol per day from the drinks listed, stating the amounts \
@@ -140,9 +140,9 @@ enum AIPromptTemplate: String, CaseIterable, Identifiable {
             """
         case .activity:
             return """
-            Please analyse my activity alongside my food, drinks and how I felt.
+            Please analyze my activity alongside my food, drinks and how I felt.
 
-            1. Summarise activity per day: type, duration, and a rough intensity estimate.
+            1. Summarize activity per day: type, duration, and a rough intensity estimate.
             2. Say whether my eating before and after activity looks adequate for recovery.
             3. Note any link between activity and how I felt later that day or the next day.
             4. Suggest a realistic weekly structure built on what I already do.

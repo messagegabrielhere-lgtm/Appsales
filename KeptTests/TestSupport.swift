@@ -1,7 +1,7 @@
 import Foundation
 @testable import Kept
 
-/// A fixed calendar so date maths in tests never depends on the machine's time zone.
+/// A fixed calendar so date math in tests never depends on the machine's time zone.
 enum TestCalendar {
     static var utc: Calendar {
         var calendar = Calendar(identifier: .gregorian)

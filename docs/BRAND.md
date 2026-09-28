@@ -36,7 +36,7 @@ Application Support folder holding 1.0 data all keep the old name. Renaming any 
 orphan existing users' data or remove widgets they already placed. Only what people see
 changed, through `Kept/Shared/Brand.swift`.
 
-## Colour
+## Color
 
 A sunrise: warm, food-friendly, and deliberately unlike the sea of green and blue health apps.
 
