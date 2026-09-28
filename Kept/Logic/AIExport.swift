@@ -240,7 +240,7 @@ enum AIExportBuilder {
         }
 
         lines.append("")
-        lines.append("(Exported from Kept.)")
+        lines.append("(Exported from \(Brand.name).)")
         return lines.joined(separator: "\n")
     }
 

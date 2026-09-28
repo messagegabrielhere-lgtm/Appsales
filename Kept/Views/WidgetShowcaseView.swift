@@ -15,7 +15,11 @@ struct WidgetShowcaseView: View {
         let entry = KeptEntry(date: Date(), habits: habits, today: DayKey.today(), waterMilliliters: waterMilliliters)
         ZStack {
             LinearGradient(
-                colors: [Color(red: 0.06, green: 0.46, blue: 0.43), Color(red: 0.13, green: 0.77, blue: 0.37)],
+                colors: [
+                    Color(red: 0.984, green: 0.749, blue: 0.141),
+                    Color(red: 0.976, green: 0.451, blue: 0.086),
+                    Color(red: 0.882, green: 0.114, blue: 0.282),
+                ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )

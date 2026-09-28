@@ -38,7 +38,7 @@ struct KeptWidget: Widget {
             KeptWidgetEntryView(entry: entry)
                 .containerBackground(.fill.tertiary, for: .widget)
         }
-        .configurationDisplayName("Today in Kept")
+        .configurationDisplayName("Today in \(Brand.name)")
         .description("Check off supplements, add water, and jump straight to logging.")
         .supportedFamilies([
             .systemSmall, .systemMedium, .systemLarge,

@@ -192,7 +192,7 @@ struct HabitEditorView: View {
                 }
                 Button("Not now", role: .cancel) {}
             } message: {
-                Text("Allow notifications for Kept in Settings to get reminders.")
+                Text("Allow notifications for \(Brand.name) in Settings to get reminders.")
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

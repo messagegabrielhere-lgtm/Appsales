@@ -21,8 +21,8 @@ CAPTIONS = [
     ("detail", "Never miss a supplement.", "Reminders, streaks and a year at a glance."),
 ]
 
-TOP_LEFT = (0x0F, 0x76, 0x6E)
-BOTTOM_RIGHT = (0x22, 0xC5, 0x5E)
+TOP_LEFT = (0xF9, 0x73, 0x16)  # brand orange
+BOTTOM_RIGHT = (0xE1, 0x1D, 0x48)  # brand rose
 
 FONT_CANDIDATES_BOLD = [
     ("/System/Library/Fonts/Supplemental/Arial Bold.ttf", 0),
@@ -77,7 +77,7 @@ def compose(src, dst, title, subtitle):
     subtitle_font = fitted_font(draw, subtitle, width - 2 * margin, int(width * 0.038), bold=False)
 
     y = int(height * 0.075)
-    for text, f, fill in ((title, title_font, (255, 255, 255)), (subtitle, subtitle_font, (225, 245, 238))):
+    for text, f, fill in ((title, title_font, (255, 255, 255)), (subtitle, subtitle_font, (255, 237, 225))):
         left, top, right, bottom = draw.textbbox((0, 0), text, font=f)
         draw.text(((width - (right - left)) / 2 - left, y), text, font=f, fill=fill)
         y += (bottom - top) + int(height * 0.012)

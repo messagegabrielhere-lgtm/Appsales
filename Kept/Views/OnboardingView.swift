@@ -32,7 +32,7 @@ struct OnboardingView: View {
                         Text("Log your day. Ask your AI.")
                             .font(.title2.bold())
                             .multilineTextAlignment(.center)
-                        Text("Log food, drinks, activity and how you feel in your own words. Kept turns it into a ready-made prompt for any AI assistant.")
+                        Text("Log food, drinks, activity and how you feel in your own words. \(Brand.name) turns it into a ready-made prompt for any AI assistant.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)

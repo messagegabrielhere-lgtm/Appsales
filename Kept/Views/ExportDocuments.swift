@@ -10,7 +10,7 @@ struct CSVDocument: Transferable {
         DataRepresentation(exportedContentType: .commaSeparatedText) { document in
             Data(document.text.utf8)
         }
-        .suggestedFileName("Kept Log.csv")
+        .suggestedFileName("\(Brand.name) Log.csv")
     }
 }
 
@@ -21,6 +21,6 @@ struct BackupDocument: Transferable {
         DataRepresentation(exportedContentType: .json) { document in
             document.data
         }
-        .suggestedFileName("Kept Backup.json")
+        .suggestedFileName("\(Brand.name) Backup.json")
     }
 }

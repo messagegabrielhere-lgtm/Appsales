@@ -54,7 +54,7 @@ struct KeptWidgetView: View {
 
     private var rectangular: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text("Kept")
+            Text(Brand.name)
                 .font(.headline)
             Text(total == 0 ? "Nothing due today" : "\(done) of \(total) checked off")
             Label(waterText, systemImage: "drop.fill")
@@ -65,8 +65,8 @@ struct KeptWidgetView: View {
     }
 
     private var inlineText: String {
-        if total == 0 { return "Kept · \(waterText)" }
-        return "Kept · \(done)/\(total) · \(waterText)"
+        if total == 0 { return "\(Brand.name) · \(waterText)" }
+        return "\(Brand.name) · \(done)/\(total) · \(waterText)"
     }
 
     // MARK: Home screen
@@ -148,7 +148,7 @@ struct KeptWidgetView: View {
     private func rows(limit: Int) -> some View {
         let habits = Array(entry.habits.prefix(limit))
         if habits.isEmpty {
-            Text("Add your supplements in Kept")
+            Text("Add your supplements in \(Brand.name)")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .center)

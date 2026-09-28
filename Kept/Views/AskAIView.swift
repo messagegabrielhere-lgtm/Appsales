@@ -119,7 +119,7 @@ struct AskAIView: View {
                         .frame(maxWidth: .infinity)
                 }
             } footer: {
-                Text("Paste into ChatGPT, Claude, Gemini or any AI assistant. Kept never sends your data anywhere; you choose where it goes.")
+                Text("Paste into ChatGPT, Claude, Gemini or any AI assistant. \(Brand.name) never sends your data anywhere; you choose where it goes.")
             }
 
             Section {
@@ -140,7 +140,7 @@ struct AskAIView: View {
             }
 
             Section {
-                Text("Kept doesn't give medical advice, and AI answers can be wrong. Talk to a doctor or pharmacist before changing supplements, medication or diet.")
+                Text("\(Brand.name) doesn't give medical advice, and AI answers can be wrong. Talk to a doctor or pharmacist before changing supplements, medication or diet.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }

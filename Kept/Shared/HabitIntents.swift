@@ -71,7 +71,7 @@ struct CompleteHabitIntent: AppIntent {
         let today = DayKey.today()
         var habits = HabitFileStore.load()
         guard let index = habits.firstIndex(where: { $0.id == habit.id }) else {
-            return .result(dialog: IntentDialog("I couldn't find that habit in Kept."))
+            return .result(dialog: IntentDialog("I couldn't find that habit in \(Brand.name)."))
         }
         if !habits[index].isCompleted(on: today) {
             habits[index].toggle(today)
@@ -108,7 +108,7 @@ enum LogKindAppEnum: String, AppEnum {
     }
 }
 
-/// "Log food in Kept", then Siri asks what you had. The fastest possible way to log.
+/// "Log food in Dayfile", then Siri asks what you had. The fastest possible way to log.
 struct AddLogEntryIntent: AppIntent {
     static var title: LocalizedStringResource = "Log an Entry"
     static var description = IntentDescription("Adds food, a drink, activity or how you feel to today's log.")
@@ -147,7 +147,7 @@ struct AddLogEntryIntent: AppIntent {
     }
 }
 
-/// One glass of water. Backs the widget's water button and "Log water in Kept".
+/// One glass of water. Backs the widget's water button and "Log water in Dayfile".
 struct AddWaterIntent: AppIntent {
     static var title: LocalizedStringResource = "Add a Glass of Water"
     static var description = IntentDescription("Adds one glass of water to today's log.")

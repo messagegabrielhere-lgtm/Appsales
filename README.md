@@ -1,6 +1,8 @@
-# Kept
+# Dayfile
 
 A daily log for food, drinks, activity, supplements and how you feel, built to hand to an AI.
+Formerly Kept; the Xcode project, bundle ID and App Group keep that name on purpose so
+existing users' data and widgets carry over.
 Paid once, no ads, no accounts, no subscription, no analytics. Everything stays on the device.
 
 - Log meals and drinks in plain words. There is deliberately no nutrition database: the AI the
@@ -11,7 +13,7 @@ Paid once, no ads, no accounts, no subscription, no analytics. Everything stays 
 - Ask AI turns any day, week or month into a ready-made prompt with six templates: energy
   patterns, nutrition estimate, supplement review, hydration, activity, or a custom question.
 - Home-screen and lock-screen widgets with one-tap water and quick-log buttons.
-- Siri: "Log food in Kept", "Log water in Kept", "Mark Vitamin D done in Kept".
+- Siri: "Log food in Dayfile", "Log water in Dayfile", "Mark Vitamin D done in Dayfile".
 - CSV and full JSON export.
 
 ## Requirements

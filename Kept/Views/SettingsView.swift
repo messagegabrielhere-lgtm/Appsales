@@ -63,13 +63,13 @@ struct SettingsView: View {
                 Section {
                     ShareLink(
                         item: CSVDocument(text: CSVExport.csv(log: store.log, habits: store.habits)),
-                        preview: SharePreview("Kept log", image: Image(systemName: "tablecells"))
+                        preview: SharePreview("\(Brand.name) log", image: Image(systemName: "tablecells"))
                     ) {
                         Label("Export Spreadsheet (CSV)", systemImage: "tablecells")
                     }
                     ShareLink(
                         item: BackupDocument(data: backupData),
-                        preview: SharePreview("Kept backup", image: Image(systemName: "externaldrive"))
+                        preview: SharePreview("\(Brand.name) backup", image: Image(systemName: "externaldrive"))
                     ) {
                         Label("Export Complete Backup (JSON)", systemImage: "externaldrive")
                     }
@@ -81,7 +81,7 @@ struct SettingsView: View {
 
                 Section {
                     Label {
-                        Text("Everything stays on this phone. Kept has no account, no analytics and no network access.")
+                        Text("Everything stays on this phone. \(Brand.name) has no account, no analytics and no network access.")
                     } icon: {
                         Image(systemName: "lock.shield")
                             .foregroundStyle(Color.accentColor)

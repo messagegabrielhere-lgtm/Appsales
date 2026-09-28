@@ -83,7 +83,7 @@ The archive is signed and the bundle ID is registered with Apple.
 
 Before uploading, the app record must exist in App Store Connect:
   https://appstoreconnect.apple.com/apps  ->  +  ->  New App
-  Bundle ID: $BUNDLE_ID   SKU: kept-ios-1   Name: Kept: Daily Habit Streaks
+  Bundle ID: $BUNDLE_ID   SKU: kept-ios-1   Name: Dayfile: Food & Supplement Log
 
 MSG
   read -r -p "Press Enter once the app record exists (or Ctrl-C to stop here)... " _
