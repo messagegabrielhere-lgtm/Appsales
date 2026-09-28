@@ -6,13 +6,13 @@ struct KeptApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            RootView()
                 .environmentObject(store)
         }
     }
 
-    /// Launching with the `-demo` argument (used by scripts/screenshots.sh) shows sample
-    /// habits in memory without touching the real data file.
+    /// Launching with the `-demo` argument (used by scripts/screenshots.sh) shows sample data
+    /// in memory without touching the real data files.
     @MainActor
     private static func makeStore() -> HabitStore {
         if CommandLine.arguments.contains("-demo") {

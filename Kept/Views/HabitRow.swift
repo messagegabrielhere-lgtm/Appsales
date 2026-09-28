@@ -47,6 +47,13 @@ struct HabitRow: View {
     }
 
     private var subtitle: String {
+        guard let dose = habit.dose?.trimmingCharacters(in: .whitespacesAndNewlines), !dose.isEmpty else {
+            return status
+        }
+        return "\(dose) · \(status)"
+    }
+
+    private var status: String {
         if !isScheduledToday && !isDone { return streak > 0 ? "Rest day · \(streak) day streak" : "Rest day" }
         switch streak {
         case 0: return "No streak"

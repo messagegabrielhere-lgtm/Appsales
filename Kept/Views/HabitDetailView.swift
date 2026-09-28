@@ -133,6 +133,9 @@ struct HabitDetailView: View {
                 .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
 
                 VStack(alignment: .leading, spacing: 6) {
+                    if let dose = habit.dose, !dose.isEmpty {
+                        Label(dose, systemImage: "pills")
+                    }
                     Label(scheduleDescription(habit), systemImage: "repeat")
                     Label(reminderDescription(habit), systemImage: habit.reminderMinutes == nil ? "bell.slash" : "bell")
                 }

@@ -1,16 +1,34 @@
 import AppIntents
 
-/// Registers "Mark <habit> done in Kept" with Siri and the Shortcuts app.
+/// Registers Kept's phrases with Siri and the Shortcuts app.
 struct KeptShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
+        AppShortcut(
+            intent: AddLogEntryIntent(),
+            phrases: [
+                "Log \(\.$kind) in \(.applicationName)",
+                "Add \(\.$kind) to \(.applicationName)",
+                "Log a meal in \(.applicationName)",
+            ],
+            shortTitle: "Log an entry",
+            systemImageName: "square.and.pencil"
+        )
+        AppShortcut(
+            intent: AddWaterIntent(),
+            phrases: [
+                "Log water in \(.applicationName)",
+                "Add a glass of water in \(.applicationName)",
+            ],
+            shortTitle: "Add water",
+            systemImageName: "drop.fill"
+        )
         AppShortcut(
             intent: CompleteHabitIntent(),
             phrases: [
                 "Mark \(\.$habit) done in \(.applicationName)",
-                "Log \(\.$habit) in \(.applicationName)",
-                "I did \(\.$habit) in \(.applicationName)",
+                "I took \(\.$habit) in \(.applicationName)",
             ],
-            shortTitle: "Mark habit done",
+            shortTitle: "Check off",
             systemImageName: "checkmark.circle"
         )
     }

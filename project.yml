@@ -36,6 +36,10 @@ targets:
         LSRequiresIPhoneOS: true
         ITSAppUsesNonExemptEncryption: false
         UILaunchScreen: {}
+        CFBundleURLTypes:
+          - CFBundleURLName: com.messagegabrielhere.kept
+            CFBundleURLSchemes:
+              - kept
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         UISupportedInterfaceOrientations~ipad:
@@ -74,6 +78,7 @@ targets:
       - path: Kept/Logic
       - path: Kept/Store/HabitFileStore.swift
       - path: Kept/Store/HabitStore.swift
+      - path: Kept/Store/KeptFiles.swift
       - path: Kept/Shared
       - path: Kept/Views/HabitPalette.swift
     info:

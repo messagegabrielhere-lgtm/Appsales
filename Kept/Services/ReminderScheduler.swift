@@ -30,7 +30,11 @@ enum ReminderScheduler {
             guard let habit = byID[item.habitID] else { continue }
             let content = UNMutableNotificationContent()
             content.title = "\(habit.emoji) \(habit.name)"
-            content.body = "Keep the streak going. Tap to check in."
+            if let dose = habit.dose?.trimmingCharacters(in: .whitespacesAndNewlines), !dose.isEmpty {
+                content.body = "\(dose). Tap to check it off."
+            } else {
+                content.body = "Keep the streak going. Tap to check in."
+            }
             content.sound = .default
             content.userInfo = ["habitID": habit.id.uuidString]
 

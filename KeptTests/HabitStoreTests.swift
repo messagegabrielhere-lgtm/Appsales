@@ -97,4 +97,60 @@ final class HabitStoreTests: XCTestCase {
         store.reloadFromDisk()
         XCTAssertTrue(store.habits[0].isCompleted(on: today))
     }
+
+    // MARK: Log and settings
+
+    private var logURL: URL {
+        fileURL.deletingLastPathComponent().appendingPathComponent(LogFileStore.fileName)
+    }
+
+    func testEntriesPersistBesideTheHabitsFile() {
+        let store = HabitStore(fileURL: fileURL)
+        store.addEntry(LogEntry(kind: .food, text: "Eggs"))
+        XCTAssertEqual(LogFileStore.load(from: logURL).map(\.text), ["Eggs"])
+        XCTAssertEqual(HabitStore(fileURL: fileURL).log.map(\.text), ["Eggs"])
+    }
+
+    func testUpdateAndDeleteEntry() throws {
+        let store = HabitStore(fileURL: fileURL)
+        store.addEntry(LogEntry(kind: .food, text: "Eggs"))
+        var entry = try XCTUnwrap(store.log.first)
+        entry.text = "Two eggs"
+        store.updateEntry(entry)
+        XCTAssertEqual(HabitStore(fileURL: fileURL).log.map(\.text), ["Two eggs"])
+        store.deleteEntry(entry)
+        XCTAssertTrue(HabitStore(fileURL: fileURL).log.isEmpty)
+    }
+
+    func testAddWaterUsesTheChosenGlassSize() throws {
+        let store = HabitStore(fileURL: fileURL)
+        var settings = store.settings
+        settings.glassMilliliters = 330
+        store.updateSettings(settings)
+
+        store.addWater(on: DayKey.today())
+        let entry = try XCTUnwrap(store.log.last)
+        XCTAssertEqual(entry.text, "Water")
+        XCTAssertEqual(entry.milliliters, 330)
+        XCTAssertEqual(store.waterMilliliters(on: DayKey.today()), 330)
+    }
+
+    func testSettingsPersist() {
+        let store = HabitStore(fileURL: fileURL)
+        var settings = store.settings
+        settings.aboutMe = "Runner"
+        store.updateSettings(settings)
+        XCTAssertEqual(HabitStore(fileURL: fileURL).settings.aboutMe, "Runner")
+    }
+
+    /// Siri and widget buttons write straight to the file; the open store must see it.
+    func testReloadSeesExternalLogWrites() {
+        let store = HabitStore(fileURL: fileURL)
+        store.addEntry(LogEntry(kind: .food, text: "Lunch"))
+        LogFileStore.append(LogEntry(kind: .drink, text: "Water", milliliters: 250), to: logURL)
+        XCTAssertEqual(store.log.count, 1)
+        store.reloadFromDisk()
+        XCTAssertEqual(store.log.count, 2)
+    }
 }
+

@@ -14,6 +14,7 @@ struct HabitEditorView: View {
     @State private var name: String
     @State private var emoji: String
     @State private var colorName: String
+    @State private var dose: String
     @State private var weekdays: Set<Int>
     @State private var reminderOn: Bool
     @State private var reminderTime: Date
@@ -31,6 +32,7 @@ struct HabitEditorView: View {
             _name = State(initialValue: "")
             _emoji = State(initialValue: "✅")
             _colorName = State(initialValue: "teal")
+            _dose = State(initialValue: "")
             _weekdays = State(initialValue: Habit.everyDay)
             _reminderOn = State(initialValue: false)
             _reminderTime = State(initialValue: defaultTime)
@@ -38,6 +40,7 @@ struct HabitEditorView: View {
             _name = State(initialValue: habit.name)
             _emoji = State(initialValue: habit.emoji)
             _colorName = State(initialValue: habit.colorName)
+            _dose = State(initialValue: habit.dose ?? "")
             _weekdays = State(initialValue: habit.schedule)
             _reminderOn = State(initialValue: habit.reminderMinutes != nil)
             let minutes = habit.reminderMinutes ?? 9 * 60
@@ -66,12 +69,20 @@ struct HabitEditorView: View {
         NavigationStack {
             Form {
                 Section("Name") {
-                    TextField("e.g. Drink water", text: $name)
+                    TextField("e.g. Vitamin D or Walk 20 minutes", text: $name)
                         .focused($nameFocused)
                         .submitLabel(.done)
                         .onSubmit {
                             if !trimmedName.isEmpty { save() }
                         }
+                }
+
+                Section {
+                    TextField("e.g. 2000 IU or 5 g", text: $dose)
+                } header: {
+                    Text("Dose")
+                } footer: {
+                    Text("Optional. Included when you ask AI about your supplements.")
                 }
 
                 Section {
@@ -158,7 +169,7 @@ struct HabitEditorView: View {
                     .padding(.vertical, 4)
                 }
             }
-            .navigationTitle(isEditing ? "Edit Habit" : "New Habit")
+            .navigationTitle(isEditing ? "Edit" : "Add to Checklist")
             .navigationBarTitleDisplayMode(.inline)
             .onAppear {
                 if !isEditing { nameFocused = true }
@@ -222,6 +233,8 @@ struct HabitEditorView: View {
             habit.colorName = colorName
         }
         habit.scheduledWeekdays = weekdays
+        let trimmedDose = dose.trimmingCharacters(in: .whitespacesAndNewlines)
+        habit.dose = trimmedDose.isEmpty ? nil : trimmedDose
         habit.reminderMinutes = reminderMinutes
         onSave(habit)
         dismiss()

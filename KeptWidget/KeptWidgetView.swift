@@ -6,6 +6,7 @@ struct KeptEntry: TimelineEntry {
     let date: Date
     let habits: [Habit]
     let today: DayKey
+    var waterMilliliters: Int = 0
 }
 
 /// Renders one widget family. The widget extension passes the family from the environment;
@@ -19,6 +20,10 @@ struct KeptWidgetView: View {
     private var total: Int { scheduled.count }
     private var fraction: Double { total == 0 ? 0 : Double(done) / Double(total) }
 
+    private var waterText: String {
+        entry.waterMilliliters == 0 ? "Water" : VolumeFormat.string(milliliters: entry.waterMilliliters)
+    }
+
     var body: some View {
         switch family {
         case .accessoryCircular:
@@ -30,9 +35,9 @@ struct KeptWidgetView: View {
         case .systemSmall:
             small
         case .systemLarge:
-            list(limit: 8)
+            large
         default:
-            list(limit: 3)
+            medium
         }
     }
 
@@ -51,20 +56,17 @@ struct KeptWidgetView: View {
         VStack(alignment: .leading, spacing: 2) {
             Text("Kept")
                 .font(.headline)
-            Text(total == 0 ? "Rest day" : "\(done) of \(total) done")
-            if let next = scheduled.first(where: { !$0.isCompleted(on: entry.today) }) {
-                Text("Next: \(next.emoji) \(next.name)")
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
+            Text(total == 0 ? "Nothing due today" : "\(done) of \(total) checked off")
+            Label(waterText, systemImage: "drop.fill")
+                .foregroundStyle(.secondary)
         }
         .font(.caption)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var inlineText: String {
-        if total == 0 { return "Kept: rest day" }
-        return done == total ? "Kept: all done" : "Kept: \(done) of \(total) done"
+        if total == 0 { return "Kept · \(waterText)" }
+        return "Kept · \(done)/\(total) · \(waterText)"
     }
 
     // MARK: Home screen
@@ -87,60 +89,117 @@ struct KeptWidgetView: View {
                 }
             }
             .frame(maxWidth: .infinity)
-            Text(entry.date, format: .dateTime.weekday(.wide))
-                .font(.caption.weight(.semibold))
-            Text(total == 0 ? "Rest day" : (done == total ? "All done" : "habits done"))
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+            HStack {
+                Text(entry.date, format: .dateTime.weekday(.wide))
+                    .font(.caption.weight(.semibold))
+                Spacer(minLength: 2)
+            }
+            Label(waterText, systemImage: "drop.fill")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.blue)
         }
     }
 
-    private func list(limit: Int) -> some View {
-        let habits = Array(entry.habits.prefix(limit))
-        return VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(entry.date, format: .dateTime.weekday(.wide).month().day())
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Text(total == 0 ? "Rest day" : "\(done)/\(total)")
+    private var medium: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            header
+            rows(limit: 3)
+            Spacer(minLength: 0)
+        }
+    }
+
+    private var large: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            header
+            rows(limit: 6)
+            Spacer(minLength: 0)
+            quickLogBar
+        }
+    }
+
+    private var header: some View {
+        HStack(spacing: 8) {
+            Text(entry.date, format: .dateTime.weekday(.wide).month().day())
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            if total > 0 {
+                Text("\(done)/\(total)")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
             }
-            if habits.isEmpty {
-                Spacer()
-                Text("Add a habit in Kept")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity)
-                Spacer()
-            } else {
-                ForEach(habits) { habit in
-                    row(habit)
+            Spacer(minLength: 4)
+            Button(intent: AddWaterIntent()) {
+                HStack(spacing: 3) {
+                    Image(systemName: "drop.fill")
+                    Text(waterText)
+                    Image(systemName: "plus")
                 }
-                Spacer(minLength: 0)
+                .font(.caption.weight(.semibold))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.blue.opacity(0.15), in: Capsule())
+                .foregroundStyle(.blue)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    @ViewBuilder
+    private func rows(limit: Int) -> some View {
+        let habits = Array(entry.habits.prefix(limit))
+        if habits.isEmpty {
+            Text("Add your supplements in Kept")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.vertical, 8)
+        } else {
+            ForEach(habits) { habit in
+                row(habit)
             }
         }
     }
 
     private func row(_ habit: Habit) -> some View {
-        let done = habit.isCompleted(on: entry.today)
+        let isDone = habit.isCompleted(on: entry.today)
         let color = HabitPalette.color(habit.colorName)
         return HStack(spacing: 8) {
             Text(habit.emoji)
             Text(habit.name)
                 .font(.subheadline.weight(.medium))
                 .lineLimit(1)
-                .strikethrough(done, color: .secondary)
-                .foregroundStyle(done ? .secondary : .primary)
+                .strikethrough(isDone, color: .secondary)
+                .foregroundStyle(isDone ? .secondary : .primary)
             Spacer(minLength: 4)
             Button(intent: ToggleHabitIntent(habit: HabitEntity(habit))) {
-                Image(systemName: done ? "checkmark.circle.fill" : "circle")
+                Image(systemName: isDone ? "checkmark.circle.fill" : "circle")
                     .font(.title3)
-                    .foregroundStyle(done ? color : Color.secondary)
+                    .foregroundStyle(isDone ? color : Color.secondary)
             }
             .buttonStyle(.plain)
         }
     }
-}
 
+    /// Deep links into the app's editor, one per kind.
+    private var quickLogBar: some View {
+        HStack(spacing: 8) {
+            ForEach(LogKind.allCases) { kind in
+                Link(destination: URL(string: "kept://log/\(kind.rawValue)")!) {
+                    VStack(spacing: 3) {
+                        Image(systemName: kind.symbol)
+                            .font(.subheadline.weight(.semibold))
+                        Text(kind.title)
+                            .font(.caption2)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
+                    .background(
+                        HabitPalette.color(kind.colorName).opacity(0.15),
+                        in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    )
+                    .foregroundStyle(HabitPalette.color(kind.colorName))
+                }
+            }
+        }
+    }
+}

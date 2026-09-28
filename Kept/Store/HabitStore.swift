@@ -2,75 +2,152 @@ import Combine
 import Foundation
 import WidgetKit
 
-/// The app's observable view of the habits file. Confined to the main actor because SwiftUI
-/// observes it; all file work is delegated to `HabitFileStore`, which the widget and App
-/// Intents use directly from their own threads.
+/// The app's observable view of its data files: the supplement and routine checklist, the
+/// food, drink, activity and feeling log, and settings. Confined to the main actor because
+/// SwiftUI observes it. All file work is delegated to plain stores that the widget and App
+/// Intents also use directly from their own threads.
 @MainActor
 final class HabitStore: ObservableObject {
     @Published private(set) var habits: [Habit] = []
+    @Published private(set) var log: [LogEntry] = []
+    @Published private(set) var settings = KeptSettings()
 
     private let fileURL: URL?
 
-    /// - Parameter fileURL: where to persist. Pass `nil` for an in-memory store (previews, tests).
+    /// The log and settings live beside the habits file, so a store pointed at a temporary
+    /// directory in tests never touches real data.
+    private var logURL: URL? {
+        fileURL?.deletingLastPathComponent().appendingPathComponent(LogFileStore.fileName)
+    }
+
+    private var settingsURL: URL? {
+        fileURL?.deletingLastPathComponent().appendingPathComponent(SettingsFileStore.fileName)
+    }
+
+    /// - Parameter fileURL: the habits file. Pass `nil` for an in-memory store (previews, tests).
     init(fileURL: URL? = HabitFileStore.fileURL) {
         self.fileURL = fileURL
         if let fileURL {
             HabitFileStore.migrateLegacyFileIfNeeded(to: fileURL)
-            habits = HabitFileStore.load(from: fileURL)
         }
+        loadAll()
     }
 
-    // MARK: Mutations
+    // MARK: Checklist
 
     func add(_ habit: Habit) {
         habits.append(habit)
-        save()
+        saveHabits()
     }
 
     func update(_ habit: Habit) {
         guard let index = habits.firstIndex(where: { $0.id == habit.id }) else { return }
         habits[index] = habit
-        save()
+        saveHabits()
     }
 
     func delete(_ habit: Habit) {
         habits.removeAll { $0.id == habit.id }
-        save()
+        saveHabits()
     }
 
     func delete(at offsets: IndexSet) {
         habits.remove(atOffsets: offsets)
-        save()
+        saveHabits()
     }
 
     func move(from source: IndexSet, to destination: Int) {
         habits.move(fromOffsets: source, toOffset: destination)
-        save()
+        saveHabits()
     }
 
     func toggle(_ habit: Habit, on day: DayKey) {
         guard let index = habits.firstIndex(where: { $0.id == habit.id }) else { return }
         habits[index].toggle(day)
-        save()
+        saveHabits()
     }
 
     func habit(id: UUID) -> Habit? {
         habits.first { $0.id == id }
     }
 
-    /// Re-reads the file. The app calls this when it becomes active, because the widget or a
-    /// Siri shortcut may have changed the data while the app was in the background.
-    func reloadFromDisk() {
-        guard let fileURL else { return }
-        let loaded = HabitFileStore.load(from: fileURL)
-        if loaded != habits {
-            habits = loaded
-        }
+    // MARK: Log
+
+    func addEntry(_ entry: LogEntry) {
+        log.append(entry)
+        log.sort { $0.date < $1.date }
+        saveLog()
     }
 
-    private func save() {
+    func updateEntry(_ entry: LogEntry) {
+        guard let index = log.firstIndex(where: { $0.id == entry.id }) else { return }
+        log[index] = entry
+        log.sort { $0.date < $1.date }
+        saveLog()
+    }
+
+    func deleteEntry(_ entry: LogEntry) {
+        log.removeAll { $0.id == entry.id }
+        saveLog()
+    }
+
+    /// One glass at the user's chosen size, timed now or at this time of day on a past day.
+    func addWater(on day: DayKey) {
+        addEntry(LogEntry(
+            kind: .drink,
+            date: LogInsights.defaultDate(for: day),
+            text: "Water",
+            milliliters: settings.glassMilliliters
+        ))
+    }
+
+    func entries(on day: DayKey) -> [LogEntry] {
+        LogInsights.entries(on: day, in: log)
+    }
+
+    func waterMilliliters(on day: DayKey) -> Int {
+        LogInsights.waterMilliliters(on: day, in: log)
+    }
+
+    func recents(for kind: LogKind) -> [String] {
+        LogInsights.recents(kind: kind, in: log)
+    }
+
+    // MARK: Settings
+
+    func updateSettings(_ newValue: KeptSettings) {
+        settings = newValue
+        guard let settingsURL else { return }
+        SettingsFileStore.save(settings, to: settingsURL)
+    }
+
+    // MARK: Persistence
+
+    /// Re-reads every file. Called when the app becomes active and when a widget button or Siri
+    /// writes from inside the app's process, so the open store never overwrites their changes.
+    func reloadFromDisk() {
+        loadAll()
+    }
+
+    private func loadAll() {
+        guard let fileURL, let logURL, let settingsURL else { return }
+        let loadedHabits = HabitFileStore.load(from: fileURL)
+        if loadedHabits != habits { habits = loadedHabits }
+        let loadedLog = LogFileStore.load(from: logURL)
+        if loadedLog != log { log = loadedLog }
+        let loadedSettings = SettingsFileStore.load(from: settingsURL)
+        if loadedSettings != settings { settings = loadedSettings }
+    }
+
+    private func saveHabits() {
         guard let fileURL else { return }
         HabitFileStore.save(habits, to: fileURL)
+        WidgetCenter.shared.reloadAllTimelines()
+    }
+
+    private func saveLog() {
+        guard let logURL else { return }
+        LogFileStore.save(log, to: logURL)
         WidgetCenter.shared.reloadAllTimelines()
     }
 
@@ -79,12 +156,18 @@ final class HabitStore: ObservableObject {
     static func preview() -> HabitStore {
         let store = HabitStore(fileURL: nil)
         store.habits = HabitStore.demoHabits()
+        store.log = HabitStore.demoLog()
+        var settings = KeptSettings()
+        settings.aboutMe = "34, 72 kg, run three times a week. Goal: steady energy through the afternoon and better sleep."
+        settings.hasOnboarded = true
+        store.settings = settings
         return store
     }
 
-    /// Sample data for previews, the widget gallery, and screenshots.
+    /// Sample checklist for previews, the widget gallery, and screenshots.
     nonisolated static func demoHabits() -> [Habit] {
         let today = DayKey.today()
+        let longAgo = Calendar.current.date(byAdding: .day, value: -400, to: Date()) ?? Date()
 
         /// Deterministic pseudo-random miss pattern so screenshots are reproducible.
         func days(count: Int, hitRate: Int, skipping explicit: Set<Int> = [], weekdaysOnly: Bool = false) -> Set<DayKey> {
@@ -101,19 +184,61 @@ final class HabitStore: ObservableObject {
         }
 
         return [
-            Habit(name: "Drink water", emoji: "💧", colorName: "blue",
+            Habit(name: "Vitamin D", emoji: "☀️", colorName: "yellow", createdAt: longAgo,
                   completions: days(count: 330, hitRate: 100, skipping: [12, 40, 41, 75, 110, 150, 151, 200, 260, 300]),
-                  reminderMinutes: 9 * 60),
-            Habit(name: "Walk 20 minutes", emoji: "🚶", colorName: "green",
-                  completions: days(count: 220, hitRate: 62, skipping: [0])),
-            Habit(name: "Read 10 pages", emoji: "📚", colorName: "orange",
-                  completions: days(count: 260, hitRate: 88, weekdaysOnly: true),
-                  scheduledWeekdays: Habit.weekdays, reminderMinutes: 21 * 60 + 30),
-            Habit(name: "Meditate", emoji: "🧘", colorName: "purple",
-                  completions: days(count: 90, hitRate: 35, skipping: [0])),
-            Habit(name: "No phone in bed", emoji: "📵", colorName: "indigo",
-                  completions: days(count: 45, hitRate: 100)),
+                  reminderMinutes: 8 * 60, dose: "2000 IU"),
+            Habit(name: "Creatine", emoji: "💪", colorName: "purple", createdAt: longAgo,
+                  completions: days(count: 220, hitRate: 85)),
+            Habit(name: "Omega-3", emoji: "🐟", colorName: "blue", createdAt: longAgo,
+                  completions: days(count: 200, hitRate: 70, skipping: [0]), dose: "1 g"),
+            Habit(name: "Magnesium", emoji: "😴", colorName: "indigo", createdAt: longAgo,
+                  completions: days(count: 260, hitRate: 90, skipping: [0]),
+                  reminderMinutes: 21 * 60 + 30, dose: "400 mg"),
+            Habit(name: "Walk 20 minutes", emoji: "🚶", colorName: "green", createdAt: longAgo,
+                  completions: days(count: 120, hitRate: 75, skipping: [0])),
         ]
+    }
+
+    /// A week of realistic entries.
+    nonisolated static func demoLog() -> [LogEntry] {
+        let calendar = Calendar.current
+        let today = DayKey.today()
+
+        func at(_ offset: Int, _ hour: Int, _ minute: Int) -> Date {
+            let start = today.adding(days: -offset).date()
+            return calendar.date(bySettingHour: hour, minute: minute, second: 0, of: start) ?? start
+        }
+
+        var entries: [LogEntry] = []
+        for offset in 0..<7 {
+            let pattern = offset % 3
+            entries.append(LogEntry(kind: .food, date: at(offset, 7, 45),
+                                    text: pattern == 1 ? "Two eggs, sourdough toast, avocado" : "Greek yogurt with berries and granola",
+                                    amount: "1 bowl"))
+            entries.append(LogEntry(kind: .drink, date: at(offset, 8, 5), text: "Flat white", milliliters: 240))
+            entries.append(LogEntry(kind: .drink, date: at(offset, 10, 30), text: "Water", milliliters: 500))
+            entries.append(LogEntry(kind: .food, date: at(offset, 12, 45),
+                                    text: pattern == 2 ? "Pizza, two slices" : "Chicken and avocado wrap"))
+            entries.append(LogEntry(kind: .drink, date: at(offset, 13, 0), text: "Water", milliliters: 330))
+            if pattern == 2 {
+                entries.append(LogEntry(kind: .drink, date: at(offset, 15, 0), text: "Cola", milliliters: 330))
+                entries.append(LogEntry(kind: .feeling, date: at(offset, 16, 0), text: "Afternoon crash, foggy", rating: 2))
+            } else {
+                entries.append(LogEntry(kind: .food, date: at(offset, 15, 30), text: "Apple and a handful of almonds"))
+                entries.append(LogEntry(kind: .feeling, date: at(offset, 16, 0), text: "Steady, focused", rating: 4))
+            }
+            if offset != 0 {
+                entries.append(LogEntry(kind: .activity, date: at(offset, 18, 15),
+                                        text: pattern == 1 ? "Strength training, upper body" : "Run, easy pace",
+                                        minutes: pattern == 1 ? 45 : 35))
+                entries.append(LogEntry(kind: .food, date: at(offset, 19, 30), text: "Salmon, rice and broccoli", amount: "1 plate"))
+                entries.append(LogEntry(kind: .drink, date: at(offset, 19, 35), text: "Water", milliliters: 500))
+                entries.append(LogEntry(kind: .feeling, date: at(offset, 21, 45),
+                                        text: pattern == 2 ? "Wired, slept badly" : "Relaxed, sleepy",
+                                        rating: pattern == 2 ? 2 : 4))
+            }
+        }
+        return entries.sorted { $0.date < $1.date }
     }
 }
 

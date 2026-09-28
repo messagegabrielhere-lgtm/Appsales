@@ -5,13 +5,14 @@ import WidgetKit
 /// screenshot (launch with `-demo -screen widgets`). Not reachable from the UI.
 struct WidgetShowcaseView: View {
     let habits: [Habit]
+    let waterMilliliters: Int
 
     @Environment(\.horizontalSizeClass) private var sizeClass
 
     private let corner: CGFloat = 22
 
     var body: some View {
-        let entry = KeptEntry(date: Date(), habits: habits, today: DayKey.today())
+        let entry = KeptEntry(date: Date(), habits: habits, today: DayKey.today(), waterMilliliters: waterMilliliters)
         ZStack {
             LinearGradient(
                 colors: [Color(red: 0.06, green: 0.46, blue: 0.43), Color(red: 0.13, green: 0.77, blue: 0.37)],
@@ -22,22 +23,21 @@ struct WidgetShowcaseView: View {
 
             VStack(spacing: 18) {
                 Spacer()
-                card(entry: entry, family: .systemMedium, width: 338)
+                card(entry: entry, family: .systemLarge, width: 338, height: 354)
                 HStack(spacing: 18) {
-                    card(entry: entry, family: .systemSmall, width: 160)
+                    card(entry: entry, family: .systemSmall, width: 160, height: 160)
                     lockScreenCard(entry: entry)
                 }
                 Spacer()
-                Spacer()
             }
-            .scaleEffect(sizeClass == .regular ? 1.7 : 1)
+            .scaleEffect(sizeClass == .regular ? 1.5 : 1)
         }
     }
 
-    private func card(entry: KeptEntry, family: WidgetFamily, width: CGFloat) -> some View {
+    private func card(entry: KeptEntry, family: WidgetFamily, width: CGFloat, height: CGFloat) -> some View {
         KeptWidgetView(entry: entry, family: family)
             .padding(16)
-            .frame(width: width, height: 160)
+            .frame(width: width, height: height)
             .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: corner, style: .continuous))
             .shadow(color: .black.opacity(0.18), radius: 18, y: 10)
     }
@@ -58,5 +58,5 @@ struct WidgetShowcaseView: View {
 }
 
 #Preview {
-    WidgetShowcaseView(habits: HabitStore.preview().habits)
+    WidgetShowcaseView(habits: HabitStore.demoHabits(), waterMilliliters: 1330)
 }

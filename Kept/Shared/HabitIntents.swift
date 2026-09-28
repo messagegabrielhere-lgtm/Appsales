@@ -52,6 +52,7 @@ struct ToggleHabitIntent: AppIntent {
     func perform() async throws -> some IntentResult {
         HabitFileStore.toggle(habitID: habit.id, on: DayKey.today())
         WidgetCenter.shared.reloadAllTimelines()
+        NotificationCenter.default.post(name: .keptDataChanged, object: nil)
         return .result()
     }
 }
@@ -76,9 +77,93 @@ struct CompleteHabitIntent: AppIntent {
             habits[index].toggle(today)
             HabitFileStore.save(habits)
             WidgetCenter.shared.reloadAllTimelines()
+            NotificationCenter.default.post(name: .keptDataChanged, object: nil)
         }
         let updated = habits[index]
         let streak = StreakCalculator.currentStreak(updated.completions, today: today, schedule: updated.schedule)
         return .result(dialog: IntentDialog("\(updated.name) done. That's a \(streak) day streak."))
+    }
+}
+
+// MARK: Logging
+
+/// The four entry kinds, as Siri and Shortcuts see them.
+enum LogKindAppEnum: String, AppEnum {
+    case food
+    case drink
+    case activity
+    case feeling
+
+    static var typeDisplayRepresentation: TypeDisplayRepresentation = "Entry Type"
+
+    static var caseDisplayRepresentations: [LogKindAppEnum: DisplayRepresentation] = [
+        .food: "food",
+        .drink: "drink",
+        .activity: "activity",
+        .feeling: "feeling",
+    ]
+
+    var logKind: LogKind {
+        LogKind(rawValue: rawValue) ?? .food
+    }
+}
+
+/// "Log food in Kept", then Siri asks what you had. The fastest possible way to log.
+struct AddLogEntryIntent: AppIntent {
+    static var title: LocalizedStringResource = "Log an Entry"
+    static var description = IntentDescription("Adds food, a drink, activity or how you feel to today's log.")
+    static var openAppWhenRun = false
+
+    @Parameter(title: "Type", default: .food)
+    var kind: LogKindAppEnum
+
+    @Parameter(title: "Entry", requestValueDialog: IntentDialog("What should I log?"))
+    var text: String
+
+    init() {}
+
+    init(kind: LogKindAppEnum, text: String) {
+        self.kind = kind
+        self.text = text
+    }
+
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return .result(dialog: IntentDialog("There was nothing to log."))
+        }
+        let logKind = kind.logKind
+        let settings = SettingsFileStore.load()
+        let entry = LogEntry(
+            kind: logKind,
+            date: Date(),
+            text: trimmed,
+            milliliters: logKind == .drink && trimmed.localizedCaseInsensitiveContains("water") ? settings.glassMilliliters : nil
+        )
+        LogFileStore.append(entry)
+        WidgetCenter.shared.reloadAllTimelines()
+        NotificationCenter.default.post(name: .keptDataChanged, object: nil)
+        return .result(dialog: IntentDialog("Logged \(logKind.title.lowercased()): \(trimmed)."))
+    }
+}
+
+/// One glass of water. Backs the widget's water button and "Log water in Kept".
+struct AddWaterIntent: AppIntent {
+    static var title: LocalizedStringResource = "Add a Glass of Water"
+    static var description = IntentDescription("Adds one glass of water to today's log.")
+    static var openAppWhenRun = false
+
+    init() {}
+
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        let settings = SettingsFileStore.load()
+        let entry = LogEntry(kind: .drink, date: Date(), text: "Water", milliliters: settings.glassMilliliters)
+        let log = LogFileStore.append(entry)
+        let total = LogInsights.waterMilliliters(on: DayKey.today(), in: log)
+        WidgetCenter.shared.reloadAllTimelines()
+        NotificationCenter.default.post(name: .keptDataChanged, object: nil)
+        let glass = VolumeFormat.string(milliliters: settings.glassMilliliters)
+        let today = VolumeFormat.string(milliliters: total)
+        return .result(dialog: IntentDialog("Added \(glass) of water. That's \(today) today."))
     }
 }

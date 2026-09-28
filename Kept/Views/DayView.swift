@@ -1,0 +1,219 @@
+import SwiftUI
+
+enum DayTitle {
+    static func title(for day: DayKey, today: DayKey = DayKey.today()) -> String {
+        if day == today { return "Today" }
+        if day == today.adding(days: -1) { return "Yesterday" }
+        let date = day.date()
+        if day.year == today.year {
+            return date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated))
+        }
+        return date.formatted(.dateTime.day().month(.abbreviated).year())
+    }
+}
+
+/// Everything for one day: one-tap logging, water, the supplement and routine checklist, and
+/// the timeline of what was logged. Used by Today and by History.
+struct DayView: View {
+    @EnvironmentObject private var store: HabitStore
+    let day: DayKey
+    @Binding var pendingKind: LogKind?
+
+    @State private var editorRequest: LogEditorRequest?
+    @State private var addingHabit = false
+
+    private var entries: [LogEntry] { store.entries(on: day) }
+    private var scheduled: [Habit] { store.habits.filter { $0.isScheduled(on: day) } }
+    private var doneCount: Int { scheduled.filter { $0.isCompleted(on: day) }.count }
+
+    var body: some View {
+        List {
+            Section {
+                QuickAddGrid { kind in
+                    editorRequest = .create(kind, day)
+                }
+                .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+                .listRowBackground(Color.clear)
+
+                WaterRow(
+                    milliliters: store.waterMilliliters(on: day),
+                    glass: store.settings.glassMilliliters
+                ) {
+                    withAnimation(.snappy) { store.addWater(on: day) }
+                    Haptics.tap()
+                }
+            }
+
+            Section {
+                if store.habits.isEmpty {
+                    Button {
+                        addingHabit = true
+                    } label: {
+                        Label("Add your supplements and routines", systemImage: "plus.circle.fill")
+                    }
+                } else {
+                    ForEach(store.habits) { habit in
+                        NavigationLink(value: habit.id) {
+                            HabitRow(habit: habit, today: day) {
+                                toggle(habit)
+                            }
+                        }
+                    }
+                }
+            } header: {
+                HStack {
+                    Text("Supplements & routines")
+                    Spacer()
+                    if !scheduled.isEmpty {
+                        Text("\(doneCount) of \(scheduled.count)")
+                            .contentTransition(.numericText())
+                    }
+                }
+            }
+
+            Section {
+                if entries.isEmpty {
+                    Text(day == DayKey.today() ? "Nothing logged yet today." : "Nothing logged this day.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(entries) { entry in
+                        Button {
+                            editorRequest = .edit(entry)
+                        } label: {
+                            LogEntryRow(entry: entry)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .onDelete(perform: deleteEntries)
+                }
+            } header: {
+                Text("Log")
+            }
+        }
+        .listStyle(.insetGrouped)
+        .sheet(item: $editorRequest) { request in
+            LogEntryEditor(request: request)
+                .environmentObject(store)
+        }
+        .sheet(isPresented: $addingHabit) {
+            HabitEditorView(mode: .create) { habit in
+                withAnimation(.snappy) { store.add(habit) }
+            }
+        }
+        .onChange(of: pendingKind) { _, kind in
+            consume(kind)
+        }
+        .onAppear {
+            consume(pendingKind)
+        }
+    }
+
+    private func consume(_ kind: LogKind?) {
+        guard let kind else { return }
+        editorRequest = .create(kind, DayKey.today())
+        pendingKind = nil
+    }
+
+    private func deleteEntries(at offsets: IndexSet) {
+        let current = entries
+        withAnimation(.snappy) {
+            for index in offsets {
+                store.deleteEntry(current[index])
+            }
+        }
+    }
+
+    private func toggle(_ habit: Habit) {
+        let wasDone = habit.isCompleted(on: day)
+        withAnimation(.snappy) {
+            store.toggle(habit, on: day)
+        }
+        guard !wasDone, let updated = store.habit(id: habit.id) else {
+            Haptics.tap()
+            return
+        }
+        let remaining = store.habits.filter { $0.isScheduled(on: day) && !$0.isCompleted(on: day) }
+        if remaining.isEmpty {
+            Haptics.success()
+        } else {
+            Haptics.checkIn(newStreak: StreakCalculator.currentStreak(
+                updated.completions, today: day, schedule: updated.schedule))
+        }
+    }
+}
+
+/// Four large targets, one per kind of entry. Two taps from here to a logged meal.
+private struct QuickAddGrid: View {
+    let onSelect: (LogKind) -> Void
+
+    var body: some View {
+        HStack(spacing: 10) {
+            ForEach(LogKind.allCases) { kind in
+                Button {
+                    Haptics.tap()
+                    onSelect(kind)
+                } label: {
+                    VStack(spacing: 6) {
+                        Image(systemName: kind.symbol)
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 46, height: 46)
+                            .background(
+                                HabitPalette.color(kind.colorName).gradient,
+                                in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            )
+                        Text(kind.title)
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.primary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(
+                        Color(.secondarySystemGroupedBackground),
+                        in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Log \(kind.title.lowercased())")
+            }
+        }
+    }
+}
+
+/// Today's water with a one-tap glass.
+private struct WaterRow: View {
+    let milliliters: Int
+    let glass: Int
+    let onAdd: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "drop.fill")
+                .font(.title3)
+                .foregroundStyle(.blue)
+                .frame(width: 44, height: 44)
+                .background(Color.blue.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Water")
+                    .font(.headline)
+                Text(milliliters == 0 ? "None yet" : VolumeFormat.string(milliliters: milliliters))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .contentTransition(.numericText())
+            }
+
+            Spacer()
+
+            Button(action: onAdd) {
+                Text("+ \(VolumeFormat.string(milliliters: glass))")
+                    .font(.subheadline.weight(.semibold))
+            }
+            .buttonStyle(.borderedProminent)
+            .buttonBorderShape(.capsule)
+            .tint(.blue)
+            .accessibilityLabel("Add a glass of water")
+        }
+        .padding(.vertical, 4)
+    }
+}

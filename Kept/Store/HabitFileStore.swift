@@ -24,29 +24,15 @@ enum HabitFileStore {
             .appendingPathComponent("habits.json")
     }
 
-    /// Never throws. A missing or damaged file reads as an empty list rather than taking the
-    /// app down, which matters most in the widget where a crash shows a blank slot.
+    /// Never throws. A missing file reads as an empty list; a damaged one is moved aside and
+    /// reads as empty, so the next save cannot overwrite data that might be recoverable.
     static func load(from url: URL = fileURL) -> [Habit] {
-        guard let data = try? Data(contentsOf: url) else { return [] }
-        return (try? JSONDecoder.kept.decode([Habit].self, from: data)) ?? []
+        JSONFile.loadArray(Habit.self, from: url)
     }
 
     @discardableResult
     static func save(_ habits: [Habit], to url: URL = fileURL) -> Bool {
-        do {
-            try FileManager.default.createDirectory(
-                at: url.deletingLastPathComponent(),
-                withIntermediateDirectories: true
-            )
-            let data = try JSONEncoder.kept.encode(habits)
-            // `completeFileProtection` would make the file unreadable while the device is
-            // locked, which breaks lock-screen widgets and reminders. Until first unlock is
-            // the strongest protection that still lets those work.
-            try data.write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
-            return true
-        } catch {
-            return false
-        }
+        JSONFile.save(habits, to: url)
     }
 
     /// 1.0 stored the file in Application Support. Copy it into the shared container once.

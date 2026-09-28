@@ -16,6 +16,8 @@ struct Habit: Identifiable, Codable, Equatable {
     var scheduledWeekdays: Set<Int>
     /// Minutes after midnight for the daily reminder, or nil for no reminder.
     var reminderMinutes: Int?
+    /// Free-text dose for supplements, such as "2000 IU". Nil for routines.
+    var dose: String?
 
     init(
         id: UUID = UUID(),
@@ -25,7 +27,8 @@ struct Habit: Identifiable, Codable, Equatable {
         createdAt: Date = Date(),
         completions: Set<DayKey> = [],
         scheduledWeekdays: Set<Int> = Habit.everyDay,
-        reminderMinutes: Int? = nil
+        reminderMinutes: Int? = nil,
+        dose: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -36,6 +39,7 @@ struct Habit: Identifiable, Codable, Equatable {
         self.completions = completions
         self.scheduledWeekdays = scheduledWeekdays
         self.reminderMinutes = reminderMinutes
+        self.dose = dose
     }
 
     /// The schedule with an empty set treated as every day, so a habit can never have no days.
@@ -66,7 +70,7 @@ struct Habit: Identifiable, Codable, Equatable {
     // MARK: Codable (tolerates files written by 1.0, which lack the newer keys)
 
     private enum CodingKeys: String, CodingKey {
-        case id, name, emoji, colorName, createdAt, completions, scheduledWeekdays, reminderMinutes
+        case id, name, emoji, colorName, createdAt, completions, scheduledWeekdays, reminderMinutes, dose
     }
 
     init(from decoder: Decoder) throws {
@@ -79,5 +83,6 @@ struct Habit: Identifiable, Codable, Equatable {
         completions = try container.decode(Set<DayKey>.self, forKey: .completions)
         scheduledWeekdays = try container.decodeIfPresent(Set<Int>.self, forKey: .scheduledWeekdays) ?? Habit.everyDay
         reminderMinutes = try container.decodeIfPresent(Int.self, forKey: .reminderMinutes)
+        dose = try container.decodeIfPresent(String.self, forKey: .dose)
     }
 }

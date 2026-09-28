@@ -4,7 +4,7 @@ import WidgetKit
 
 struct KeptProvider: TimelineProvider {
     func placeholder(in context: Context) -> KeptEntry {
-        KeptEntry(date: Date(), habits: HabitStore.demoHabits(), today: DayKey.today())
+        KeptEntry(date: Date(), habits: HabitStore.demoHabits(), today: DayKey.today(), waterMilliliters: 1330)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (KeptEntry) -> Void) {
@@ -20,7 +20,13 @@ struct KeptProvider: TimelineProvider {
     }
 
     private func currentEntry() -> KeptEntry {
-        KeptEntry(date: Date(), habits: HabitFileStore.load(), today: DayKey.today())
+        let today = DayKey.today()
+        return KeptEntry(
+            date: Date(),
+            habits: HabitFileStore.load(),
+            today: today,
+            waterMilliliters: LogInsights.waterMilliliters(on: today, in: LogFileStore.load())
+        )
     }
 }
 
@@ -32,8 +38,8 @@ struct KeptWidget: Widget {
             KeptWidgetEntryView(entry: entry)
                 .containerBackground(.fill.tertiary, for: .widget)
         }
-        .configurationDisplayName("Today's Habits")
-        .description("Check off habits without opening the app.")
+        .configurationDisplayName("Today in Kept")
+        .description("Check off supplements, add water, and jump straight to logging.")
         .supportedFamilies([
             .systemSmall, .systemMedium, .systemLarge,
             .accessoryCircular, .accessoryRectangular, .accessoryInline,
@@ -47,11 +53,12 @@ private struct KeptWidgetEntryView: View {
 
     var body: some View {
         KeptWidgetView(entry: entry, family: family)
+            .widgetURL(family == .systemSmall ? URL(string: "kept://log/food") : nil)
     }
 }
 
-#Preview(as: .systemMedium) {
+#Preview(as: .systemLarge) {
     KeptWidget()
 } timeline: {
-    KeptEntry(date: Date(), habits: HabitStore.demoHabits(), today: DayKey.today())
+    KeptEntry(date: Date(), habits: HabitStore.demoHabits(), today: DayKey.today(), waterMilliliters: 1330)
 }
