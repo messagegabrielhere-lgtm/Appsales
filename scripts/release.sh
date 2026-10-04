@@ -31,7 +31,7 @@ xcodebuild archive \
   -archivePath "$ARCHIVE" \
   -allowProvisioningUpdates \
   -allowProvisioningDeviceRegistration \
-  PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
+  APP_BUNDLE_ID="$BUNDLE_ID" \
   DEVELOPMENT_TEAM="$TEAM_ID" \
   MARKETING_VERSION="$VERSION" \
   CURRENT_PROJECT_VERSION="$BUILD" \
@@ -48,7 +48,7 @@ if [ $status -ne 0 ] && grep -q "no devices" build/archive.log; then
     -scheme Kept \
     -destination "generic/platform=iOS" \
     -archivePath "$ARCHIVE" \
-    PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
+    APP_BUNDLE_ID="$BUNDLE_ID" \
     DEVELOPMENT_TEAM="$TEAM_ID" \
     MARKETING_VERSION="$VERSION" \
     CURRENT_PROJECT_VERSION="$BUILD" \

@@ -44,10 +44,33 @@ jobs:
             | tee build.log \
             | (grep -E "error:|warning:|Test Case|Test Suite|Executed|\*\* (BUILD|TEST)" || true)
 
+      - name: Archive for device and check bundle IDs
+        # Mirrors scripts/release.sh. App Store Connect rejects an upload whose widget has the
+        # app's own bundle ID, so make sure the widget's ID is the app's plus ".widget".
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -project Kept.xcodeproj \
+            -scheme Kept \
+            -destination "generic/platform=iOS" \
+            -archivePath "$RUNNER_TEMP/Kept.xcarchive" \
+            APP_BUNDLE_ID=com.messagegabrielhere.kept \
+            CODE_SIGNING_ALLOWED=NO \
+            | tee archive.log \
+            | (grep -E "error:|\*\* ARCHIVE" || true)
+          APP="$RUNNER_TEMP/Kept.xcarchive/Products/Applications/Kept.app"
+          app_id=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP/Info.plist")
+          widget_id=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP/PlugIns/KeptWidget.appex/Info.plist")
+          echo "App: $app_id  Widget: $widget_id"
+          [ "$app_id" = "com.messagegabrielhere.kept" ] || { echo "::error::App bundle ID is $app_id"; exit 1; }
+          [ "$widget_id" = "$app_id.widget" ] || { echo "::error::Widget bundle ID is $widget_id"; exit 1; }
+
       - name: Upload build log
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: build-log
-          path: build.log
+          path: |
+            build.log
+            archive.log
           if-no-files-found: ignore

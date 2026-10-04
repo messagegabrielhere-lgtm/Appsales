@@ -77,7 +77,7 @@ xcodebuild build \
   -derivedDataPath build/DerivedData \
   -allowProvisioningUpdates \
   -allowProvisioningDeviceRegistration \
-  PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
+  APP_BUNDLE_ID="$BUNDLE_ID" \
   DEVELOPMENT_TEAM="$TEAM_ID" \
   > build/device-build.log 2>&1
 status=$?
