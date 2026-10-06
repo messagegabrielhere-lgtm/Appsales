@@ -1,0 +1,26 @@
+name: Check app names
+
+# Searches the US App Store for each candidate name. Runs on GitHub because the search API
+# is not reachable from every development environment.
+
+on:
+  workflow_dispatch:
+    inputs:
+      names:
+        description: "Names to check, separated by commas"
+        required: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Search the App Store
+        env:
+          NAMES: ${{ inputs.names }}
+        run: |
+          IFS=',' read -ra list <<< "$NAMES"
+          trimmed=()
+          for n in "${list[@]}"; do trimmed+=("$(echo "$n" | xargs)"); done
+          python3 scripts/check_names.py "${trimmed[@]}"
