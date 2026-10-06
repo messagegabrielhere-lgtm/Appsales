@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generates the Dayfile app icon with no third-party dependencies.
+"""Generates the Fuelprint app icon with no third-party dependencies.
 
 A sunrise gradient (amber to orange to rose) behind a white page. Three entry lines are cut
 out of the page, and a sparkle sits just clear of its top-right corner: your day, filed,

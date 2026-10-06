@@ -33,7 +33,7 @@ targets:
     info:
       path: Kept/Info.plist
       properties:
-        CFBundleDisplayName: Dayfile
+        CFBundleDisplayName: Fuelprint
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSRequiresIPhoneOS: true
@@ -87,7 +87,7 @@ targets:
     info:
       path: KeptWidget/Info.plist
       properties:
-        CFBundleDisplayName: Dayfile
+        CFBundleDisplayName: Fuelprint
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSExtension:

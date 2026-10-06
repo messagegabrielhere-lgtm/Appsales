@@ -6,5 +6,5 @@ import Foundation
 /// the module name, the widget `kind`, and the Application Support folder that holds 1.0 data.
 /// Renaming any of them would orphan existing users' data or remove widgets they already placed.
 enum Brand {
-    static let name = "Dayfile"
+    static let name = "Fuelprint"
 }

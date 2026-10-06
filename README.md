@@ -1,4 +1,4 @@
-# Dayfile
+# Fuelprint
 
 A daily log for food, drinks, activity, supplements and how you feel, built to hand to an AI.
 Formerly Kept; the Xcode project, bundle ID and App Group keep that name on purpose so
@@ -13,7 +13,7 @@ Paid once, no ads, no accounts, no subscription, no analytics. Everything stays 
 - Ask AI turns any day, week or month into a ready-made prompt with six templates: energy
   patterns, nutrition estimate, supplement review, hydration, activity, or a custom question.
 - Home-screen and lock-screen widgets with one-tap water and quick-log buttons.
-- Siri: "Log food in Dayfile", "Log water in Dayfile", "Mark Vitamin D done in Dayfile".
+- Siri: "Log food in Fuelprint", "Log water in Fuelprint", "Mark Vitamin D done in Fuelprint".
 - CSV and full JSON export.
 
 ## Requirements

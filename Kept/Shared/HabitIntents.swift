@@ -108,7 +108,7 @@ enum LogKindAppEnum: String, AppEnum {
     }
 }
 
-/// "Log food in Dayfile", then Siri asks what you had. The fastest possible way to log.
+/// "Log food in Fuelprint", then Siri asks what you had. The fastest possible way to log.
 struct AddLogEntryIntent: AppIntent {
     static var title: LocalizedStringResource = "Log an Entry"
     static var description = IntentDescription("Adds food, a drink, activity or how you feel to today's log.")
@@ -147,7 +147,7 @@ struct AddLogEntryIntent: AppIntent {
     }
 }
 
-/// One glass of water. Backs the widget's water button and "Log water in Dayfile".
+/// One glass of water. Backs the widget's water button and "Log water in Fuelprint".
 struct AddWaterIntent: AppIntent {
     static var title: LocalizedStringResource = "Add a Glass of Water"
     static var description = IntentDescription("Adds one glass of water to today's log.")
