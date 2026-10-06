@@ -64,7 +64,7 @@ In this repository: **Settings > Secrets and variables > Actions > New repositor
 | `APPLE_TEAM_ID` | 10-character Team ID from <https://developer.apple.com/account> under Membership |
 | `APP_STORE_CONNECT_API_KEY_ID` | Key ID from step 2 |
 | `APP_STORE_CONNECT_API_ISSUER_ID` | Issuer ID from step 2 |
-| `APP_STORE_CONNECT_API_KEY_P8` | The `.p8` file contents, base64-encoded: `base64 -i AuthKey_XXXX.p8 \| pbcopy` on Mac, or `base64 -w0 AuthKey_XXXX.p8` on Linux |
+| `APP_STORE_CONNECT_API_KEY_P8` | The whole `.p8` file, pasted as-is (open it in TextEdit, copy everything including the BEGIN and END lines). Base64 also works. |
 | `DIST_CERT_P12_BASE64` | The `.p12` from step 3, base64-encoded the same way |
 | `DIST_CERT_PASSWORD` | The password you set when exporting the `.p12` |
 
@@ -90,3 +90,26 @@ In this repository: **Settings > Secrets and variables > Actions > New repositor
 - **"Unable to authenticate"**: the API key needs **App Manager** access, not Developer.
 - **Upload succeeds but nothing appears**: wait 30 minutes and check the email address on
   your Apple ID for a processing failure notice.
+
+## Publish from GitHub: listing, screenshots and submission
+
+The **Publish to App Store** workflow does everything on the App Store Connect version page
+for you, using `scripts/app_store_connect.py`:
+
+- creates the version (for example `2.0.0`) if it does not exist
+- name, subtitle, privacy policy URL and categories from the listing file
+- description, keywords, promotional text, What's New and support URL
+- replaces the iPhone 6.5" and iPad 13" screenshots with the ones on the `screenshots` branch
+- attaches the newest processed build for that version
+- App Review notes; contact details carry over from the previous version
+- with **Submit for App Review** ticked, submits it
+
+It needs only the three API key secrets from steps 2 and 4: `APP_STORE_CONNECT_API_KEY_ID`,
+`APP_STORE_CONNECT_API_ISSUER_ID` and `APP_STORE_CONNECT_API_KEY_P8`. The key needs the
+**App Manager** role (or Admin).
+
+1. Upload the build: `SKIP_PAUSE=1 scripts/release.sh` on a Mac.
+2. **Actions > Publish to App Store > Run workflow**. Leave Submit unticked the first time,
+   check the version page in App Store Connect, then run it again with Submit ticked.
+
+Running it twice is safe: screenshots that are already up to date are not uploaded again.

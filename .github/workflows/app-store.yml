@@ -1,0 +1,77 @@
+name: Publish to App Store
+
+# Fills in an App Store version from the repository: name, subtitle, categories, description,
+# keywords, What's New, screenshots, build and App Review notes. With "submit" ticked it also
+# submits the version for App Review. Upload the build first (scripts/release.sh on a Mac).
+# Needs three repository secrets; see docs/RELEASE.md, "Publish from GitHub".
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to publish"
+        required: true
+        default: "2.0.0"
+      listing:
+        description: "Listing file"
+        required: true
+        default: "docs/listing/v2.0.md"
+      build:
+        description: "Build number (blank = newest uploaded for this version)"
+        required: false
+        default: ""
+      submit:
+        description: "Submit for App Review when done"
+        type: boolean
+        default: false
+
+concurrency:
+  group: app-store
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish listing
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+      APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+      APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check required secrets
+        run: |
+          missing=""
+          for name in APP_STORE_CONNECT_API_KEY_ID APP_STORE_CONNECT_API_ISSUER_ID APP_STORE_CONNECT_API_KEY_P8; do
+            eval "value=\${$name:-}"
+            [ -z "$value" ] && missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing. See docs/RELEASE.md, Publish from GitHub."
+            exit 1
+          fi
+
+      - name: Check listing lengths
+        run: python3 scripts/check_listing.py "${{ inputs.listing }}"
+
+      - name: Get screenshots
+        uses: actions/checkout@v4
+        with:
+          ref: screenshots
+          path: screenshots
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install --quiet pyjwt cryptography requests
+
+      - name: Publish
+        run: |
+          args=(--version "${{ inputs.version }}" --listing "${{ inputs.listing }}" --screenshots screenshots/marketing)
+          [ -n "${{ inputs.build }}" ] && args+=(--build "${{ inputs.build }}")
+          [ "${{ inputs.submit }}" = "true" ] && args+=(--submit)
+          python3 scripts/app_store_connect.py "${args[@]}"
