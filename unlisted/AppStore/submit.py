@@ -424,6 +424,38 @@ def attach_build(app_id, vid, version):
     return False
 
 
+def privacy_not_collected(app_id):
+    """App Privacy: "No, we do not collect data from this app", then publish.
+    These endpoints aren't in Apple's public API docs (App Store Connect's own
+    site uses them), so a refusal here just means doing it on the website."""
+    s, r = api("GET", f"/v1/apps/{app_id}/dataUsagePublishState")
+    state = r.get("data") if ok(s) else None
+    if state and (state.get("attributes") or {}).get("published"):
+        notice("App Privacy", "Already published.")
+        return
+    s, r = api("GET", f"/v1/apps/{app_id}/dataUsages?include=dataProtection&limit=50")
+    existing = r.get("data") or [] if ok(s) else []
+    if not existing:
+        s, r = api("POST", "/v1/appDataUsages", {"data": {"type": "appDataUsages", "relationships": {
+            "app": ref("apps", app_id),
+            "dataProtection": ref("appDataUsageDataProtections", "DATA_NOT_COLLECTED")}}})
+        if not ok(s):
+            print(f"::warning title=App Privacy::Apple didn't accept the answer through the API ({why(r)}).", flush=True)
+            return
+    if not state:
+        s, r = api("GET", f"/v1/apps/{app_id}/dataUsagePublishState")
+        state = r.get("data") if ok(s) else None
+    if not state:
+        print(f"::warning title=App Privacy::Couldn't find the publish switch ({why(r)}).", flush=True)
+        return
+    s, r = api("PATCH", f"/v1/appDataUsagesPublishState/{state['id']}", {"data": {
+        "type": "appDataUsagesPublishState", "id": state["id"], "attributes": {"published": True}}})
+    if ok(s):
+        notice("App Privacy", "Data Not Collected, published.")
+    else:
+        print(f"::warning title=App Privacy::Couldn't publish ({why(r)}).", flush=True)
+
+
 def submit(app_id, vid):
     s, r = api("GET", f"/v1/reviewSubmissions?filter[app]={app_id}&filter[platform]=IOS"
                       "&filter[state]=READY_FOR_REVIEW,UNRESOLVED_ISSUES")
@@ -488,6 +520,7 @@ def main():
         print(f"::error title=Not submitted::Fix the items above, then re-run. Everything else is saved. "
               f"({', '.join(dict.fromkeys(problems))})")
         sys.exit(1)
+    privacy_not_collected(app_id)
     submit(app_id, vid)
     sys.exit(1 if problems else 0)
 
