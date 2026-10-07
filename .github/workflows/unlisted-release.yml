@@ -1,0 +1,115 @@
+name: Unlisted release
+
+# Signs the Unlisted app and uploads it to App Store Connect (TestFlight).
+# Run it by pushing a tag like `unlisted-v1.0.0`. The version comes from the tag
+# and the build number from the run number.
+#
+# Uses the same three repository secrets as Kept's release workflow
+# (Settings > Secrets and variables > Actions), so one API key serves both apps:
+#   APP_STORE_CONNECT_API_KEY_ID      App Store Connect API key ID
+#   APP_STORE_CONNECT_API_ISSUER_ID   App Store Connect API issuer ID
+#   APP_STORE_CONNECT_API_KEY_P8      the AuthKey_XXXX.p8 file, as-is or base64
+# The key needs the Admin role so Xcode can create the signing certificate in
+# the cloud; no certificate export from a Mac is needed.
+# Optional repository variables: APPLE_TEAM_ID (defaults to MAP974T827) and
+# UNLISTED_BUNDLE_ID (defaults to com.messagegabrielhere.unlisted).
+on:
+  push:
+    tags:
+      - 'unlisted-v*'
+
+permissions:
+  contents: read
+
+jobs:
+  upload:
+    runs-on: macos-15
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: unlisted
+    env:
+      BUNDLE_ID: ${{ vars.UNLISTED_BUNDLE_ID || 'com.messagegabrielhere.unlisted' }}
+      APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID || 'MAP974T827' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check secrets
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+        run: |
+          missing=""
+          for name in ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8; do
+            [ -z "${!name}" ] && missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets (shared with Kept): APP_STORE_CONNECT_API_KEY_ID, APP_STORE_CONNECT_API_ISSUER_ID, APP_STORE_CONNECT_API_KEY_P8. See the comment at the top of this workflow."
+            exit 1
+          fi
+
+      - name: Write API key
+        env:
+          ASC_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+        run: |
+          if printf '%s' "$ASC_KEY_P8" | grep -q "BEGIN PRIVATE KEY"; then
+            printf '%s\n' "$ASC_KEY_P8" > "$RUNNER_TEMP/AuthKey.p8"
+          else
+            printf '%s' "$ASC_KEY_P8" | base64 --decode > "$RUNNER_TEMP/AuthKey.p8"
+          fi
+          chmod 600 "$RUNNER_TEMP/AuthKey.p8"
+
+      - name: Install XcodeGen and generate project
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Archive
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#unlisted-v}"
+          if ! xcodebuild archive \
+              -project Unlisted.xcodeproj -scheme Unlisted -configuration Release \
+              -destination 'generic/platform=iOS' \
+              -archivePath "$RUNNER_TEMP/Unlisted.xcarchive" \
+              -allowProvisioningUpdates \
+              -authenticationKeyPath "$RUNNER_TEMP/AuthKey.p8" \
+              -authenticationKeyID "$ASC_KEY_ID" \
+              -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+              DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+              PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
+              MARKETING_VERSION="$VERSION" \
+              CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
+              CODE_SIGN_STYLE=Automatic > archive.log 2>&1; then
+            grep -E "error:" archive.log | head -n 20 | while IFS= read -r line; do echo "::error::$line"; done
+            tail -n 60 archive.log
+            exit 1
+          fi
+
+      - name: Upload to App Store Connect
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+        run: |
+          cp AppStore/ExportOptions.plist "$RUNNER_TEMP/ExportOptions.plist"
+          /usr/libexec/PlistBuddy -c "Add :teamID string $APPLE_TEAM_ID" "$RUNNER_TEMP/ExportOptions.plist"
+          if ! xcodebuild -exportArchive \
+              -archivePath "$RUNNER_TEMP/Unlisted.xcarchive" \
+              -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+              -exportPath "$RUNNER_TEMP/export" \
+              -allowProvisioningUpdates \
+              -authenticationKeyPath "$RUNNER_TEMP/AuthKey.p8" \
+              -authenticationKeyID "$ASC_KEY_ID" \
+              -authenticationKeyIssuerID "$ASC_ISSUER_ID" > export.log 2>&1; then
+            grep -E "error|Error" export.log | head -n 20 | while IFS= read -r line; do echo "::error::$line"; done
+            tail -n 60 export.log
+            exit 1
+          fi
+          echo "::notice title=Uploaded::Build $GITHUB_RUN_NUMBER of version ${GITHUB_REF_NAME#unlisted-v} uploaded. It appears in TestFlight after Apple finishes processing (about 10-30 minutes)."
+
+      - name: Remove API key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/AuthKey.p8"

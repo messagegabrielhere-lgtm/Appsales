@@ -1,0 +1,131 @@
+name: Unlisted CI
+
+# Builds and tests the Unlisted app (in unlisted/), then refreshes its App
+# Store screenshots. Only runs when unlisted/ changes, so Kept is unaffected.
+on:
+  push:
+    paths:
+      - 'unlisted/**'
+      - '.github/workflows/unlisted-ci.yml'
+      - '!unlisted/AppStore/screenshots/**'
+  pull_request:
+    paths:
+      - 'unlisted/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: unlisted-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: macos-15
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: unlisted
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Pick a simulator
+        id: sim
+        run: |
+          UDID=$(xcrun simctl list devices available -j \
+            | jq -r '[.devices | to_entries[] | select(.key | test("iOS")) | .value[] | select(.name | test("^iPhone"))][0].udid')
+          echo "Using simulator $UDID"
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+
+      - name: Build and test
+        run: |
+          if xcodebuild test \
+              -project Unlisted.xcodeproj \
+              -scheme Unlisted \
+              -destination "id=${{ steps.sim.outputs.udid }}" \
+              CODE_SIGNING_ALLOWED=NO > build.log 2>&1; then
+            grep -E "Test Suite|Executed" build.log | tail -n 20
+            echo "::notice title=Unlisted tests::$(grep -E 'Executed [0-9]+ tests' build.log | tail -n 1 | sed 's/^ *//')"
+          else
+            grep -nE "error:|warning: .*Unlisted|Failing tests|failed" build.log | head -n 150
+            grep -E "error:" build.log | head -n 20 | while IFS= read -r line; do echo "::error::$line"; done
+            tail -n 80 build.log
+            exit 1
+          fi
+
+  # App Store screenshots of the fictional demo family, on the 6.9" iPhone that
+  # App Store Connect requires. Committed back to the branch so they can be
+  # reviewed and uploaded. GITHUB_TOKEN pushes don't trigger workflows, so this
+  # doesn't loop.
+  screenshots:
+    needs: build-and-test
+    if: github.event_name == 'push'
+    runs-on: macos-15
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: unlisted
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Boot a 6.9-inch iPhone simulator
+        id: sim
+        run: |
+          UDID=$(xcrun simctl list devices available -j \
+            | jq -r '[.devices | to_entries[] | select(.key | test("iOS")) | .value[] | select(.name | test("Pro Max"))] | last | .udid')
+          echo "Using simulator $UDID"
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+
+      - name: Build for the simulator
+        run: |
+          xcodebuild build \
+            -project Unlisted.xcodeproj -scheme Unlisted \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -derivedDataPath dd CODE_SIGNING_ALLOWED=NO > build.log 2>&1 || { tail -n 80 build.log; exit 1; }
+
+      - name: Take screenshots
+        env:
+          UDID: ${{ steps.sim.outputs.udid }}
+        run: |
+          xcrun simctl install "$UDID" dd/Build/Products/Debug-iphonesimulator/Unlisted.app
+          xcrun simctl status_bar "$UDID" override --time "9:41" --batteryState charged --batteryLevel 100 \
+            --cellularMode active --cellularBars 4 --wifiBars 3 --dataNetwork wifi
+          mkdir -p AppStore/screenshots
+          names=(1-home 2-scan 3-remove 4-letters 5-protect)
+          for tab in 0 1 2 3 4; do
+            xcrun simctl launch --terminate-running-process "$UDID" com.messagegabrielhere.unlisted -demo -tab "$tab"
+            sleep 6
+            xcrun simctl io "$UDID" screenshot "AppStore/screenshots/${names[$tab]}.png"
+          done
+          ls -la AppStore/screenshots
+
+      - name: Commit screenshots
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add AppStore/screenshots
+          if git diff --cached --quiet; then
+            echo "Screenshots unchanged"
+          else
+            git commit -m "Update Unlisted App Store screenshots"
+            git push origin "HEAD:${GITHUB_REF#refs/heads/}"
+          fi

@@ -1,0 +1,8 @@
+*.xcodeproj/
+DerivedData/
+dd/
+build.log
+archive.log
+export.log
+.DS_Store
+xcuserdata/
