@@ -1,0 +1,26 @@
+name: Keyword research
+
+# Sizes up App Store search terms (US store) for choosing the subtitle and keywords. Runs on
+# GitHub because the search API is not reachable from every development environment.
+
+on:
+  workflow_dispatch:
+    inputs:
+      terms:
+        description: "Search terms, separated by commas"
+        required: true
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Search the App Store
+        env:
+          TERMS: ${{ inputs.terms }}
+        run: |
+          IFS=',' read -ra list <<< "$TERMS"
+          trimmed=()
+          for t in "${list[@]}"; do trimmed+=("$(echo "$t" | xargs)"); done
+          python3 scripts/keyword_research.py "${trimmed[@]}"
