@@ -15,8 +15,10 @@ ROOT = Path(__file__).resolve().parent.parent.parent / "build" / "screenshots"
 
 CAPTIONS = [
     ("today", "Food, drinks and supplements.", "Your whole day in one place."),
+    ("paste", "Type your day like a note.", "Or paste a whole month at once."),
+    ("ai", "15 questions for your AI.", "Protein, weight, sleep, gut health and more."),
+    ("send", "Send to your favorite AI.", "Your prompt, ready in one tap."),
     ("log", "Type it the way you'd say it.", "No calorie lookups. Your AI does the math."),
-    ("ai", "Ask your AI what it means.", "One tap turns your week into a ready prompt."),
     ("widgets", "Log from your home screen.", "Water in one tap. Supplements too."),
     ("detail", "Never miss a supplement.", "Reminders, streaks and a year at a glance."),
 ]

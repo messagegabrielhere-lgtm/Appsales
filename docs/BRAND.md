@@ -33,6 +33,13 @@ only food or only mood.
 
 Re-check before any major marketing push; names get taken.
 
+## Publisher
+
+Fuelprint is published by **Pioneer I LLC**. The app's Settings footer, the website, the
+privacy policy and the App Store copyright line name the company, not a person. The developer
+name Apple shows on the App Store changes to the company once Apple converts the developer
+account from Individual to Organization (needs the LLC's D-U-N-S number).
+
 ## What stays "Kept" internally, on purpose
 
 The bundle ID (`com.messagegabrielhere.kept`), App Group, Xcode module, widget `kind`, and the

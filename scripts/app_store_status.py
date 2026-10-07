@@ -127,7 +127,9 @@ def main(argv=None, client=None):
         bad("Content rights", "not declared")
 
     asc.step(f"Version {args.version}")
-    if attributes.get("copyright"):
+    if fields.get("Copyright"):
+        compare("Copyright", attributes.get("copyright"), fields["Copyright"])
+    elif attributes.get("copyright"):
         ok("Copyright", attributes["copyright"])
     else:
         bad("Copyright", "empty")

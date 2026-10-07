@@ -9,11 +9,11 @@ on:
       version:
         description: "Version to check"
         required: true
-        default: "2.0.0"
+        default: "2.1.0"
       listing:
         description: "Listing file"
         required: true
-        default: "docs/listing/v2.0.md"
+        default: "docs/listing/v2.1.md"
 
 jobs:
   status:

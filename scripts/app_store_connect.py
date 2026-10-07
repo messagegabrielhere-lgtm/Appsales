@@ -270,7 +270,10 @@ def localization_for(localizations, locale):
 def update_version_text(client, version, previous, locale, fields):
     attributes = {}
     copyright_text = version["attributes"].get("copyright")
-    if not copyright_text and previous:
+    wanted = fields.get("Copyright")
+    if wanted and wanted != copyright_text:
+        attributes["copyright"] = wanted
+    elif not copyright_text and previous:
         attributes["copyright"] = previous["attributes"].get("copyright")
     if attributes.get("copyright"):
         client.update("appStoreVersions", version["id"], attributes)

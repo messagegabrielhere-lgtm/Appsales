@@ -10,6 +10,8 @@ on:
       - main
     paths:
       - "index.html"
+      - "robots.txt"
+      - "sitemap.xml"
       - "docs/**"
       - "Kept/Assets.xcassets/AppIconPreview.imageset/**"
       - ".github/workflows/pages.yml"
@@ -41,7 +43,7 @@ jobs:
       - name: Assemble site
         run: |
           mkdir -p site/docs site/Kept/Assets.xcassets/AppIconPreview.imageset
-          cp index.html site/
+          cp index.html robots.txt sitemap.xml site/
           cp -R docs/privacy docs/support docs/_style.css site/docs/
           cp Kept/Assets.xcassets/AppIconPreview.imageset/AppIconPreview@3x.png site/Kept/Assets.xcassets/AppIconPreview.imageset/
           touch site/.nojekyll

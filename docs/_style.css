@@ -5,6 +5,10 @@ body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.6 -apple
 main { max-width: 680px; margin: 0 auto; padding: 48px 20px 80px; }
 h1 { font-size: 2rem; letter-spacing: -0.02em; margin: 0 0 8px; }
 h2 { font-size: 1.15rem; margin: 32px 0 8px; }
+h3 { font-size: 1rem; margin: 20px 0 4px; }
+.lead { font-size: 1.2rem; font-weight: 600; margin: 0 0 16px; }
+code { font: 0.9em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--card); padding: 1px 5px; border-radius: 5px; }
+ol { padding-left: 22px; }
 p, li { color: var(--fg); }
 .muted { color: var(--muted); }
 a { color: var(--accent); text-decoration: none; }

@@ -3,15 +3,20 @@
 A daily log for food, drinks, activity, supplements and how you feel, built to hand to an AI.
 Formerly Kept; the Xcode project, bundle ID and App Group keep that name on purpose so
 existing users' data and widgets carry over.
-Paid once, no ads, no accounts, no subscription, no analytics. Everything stays on the device.
+Published by Pioneer I LLC. Paid once, no ads, no accounts, no subscription, no analytics. Everything stays on the device.
 
 - Log meals and drinks in plain words. There is deliberately no nutrition database: the AI the
   user shares with does the estimating, better than a manual lookup would.
+- Type or paste a list: one line per thing, date lines split days, so a notes-app food diary
+  or a month of it comes in at once. Lines are sorted into food, drink, supplement, activity,
+  feeling or other, and already-logged lines are skipped.
 - Recent entries become one-tap suggestions. One tap adds a glass of water.
 - A five-face feeling scale with notes on energy, mood, sleep and digestion.
 - A supplements and routines checklist with doses, reminders, rest days and streaks.
-- Ask AI turns any day, week or month into a ready-made prompt with six templates: energy
-  patterns, nutrition estimate, supplement review, hydration, activity, or a custom question.
+- Ask AI turns any period into a ready-made prompt with fifteen questions (nutrition, protein,
+  weight goal, gut health, sleep, supplements, meal plan, grocery list, doctor visit summary and
+  more), prefixed with the user's optional profile, and opens ChatGPT, Claude, Gemini,
+  Perplexity, Copilot or Grok with it. A not-medical-advice notice comes first.
 - Home-screen and lock-screen widgets with one-tap water and quick-log buttons.
 - Siri: "Log food in Fuelprint", "Log water in Fuelprint", "Mark Vitamin D done in Fuelprint".
 - CSV and full JSON export.
