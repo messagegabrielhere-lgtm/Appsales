@@ -10,8 +10,8 @@ name: Unlisted release
 #   APP_STORE_CONNECT_API_KEY_ID      App Store Connect API key ID
 #   APP_STORE_CONNECT_API_ISSUER_ID   App Store Connect API issuer ID
 #   APP_STORE_CONNECT_API_KEY_P8      the AuthKey_XXXX.p8 file, as-is or base64
-# The key needs the Admin role so Xcode can create the signing certificate in
-# the cloud; no certificate export from a Mac is needed.
+# Each run creates a temporary distribution certificate and App Store profile
+# with the key and revokes them afterwards; nothing to export from a Mac.
 # Optional repository variables: APPLE_TEAM_ID (defaults to MAP974T827) and
 # UNLISTED_BUNDLE_ID (defaults to com.messagegabrielhere.unlisted).
 on:
@@ -103,10 +103,30 @@ jobs:
           brew install xcodegen
           xcodegen generate
 
-      # Archive unsigned, then let the export step sign it for the App Store
-      # with a cloud-managed distribution certificate. Signing during the
-      # archive would need a development profile, which needs a registered
-      # test device.
+      # The API key makes a temporary Apple Distribution certificate and App
+      # Store profile for this run; they're revoked at the end. App Store
+      # profiles don't need registered devices.
+      - name: Set up signing
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+        run: |
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install --quiet "pyjwt[crypto]==2.9.0"
+          ASC_KEY_PATH="$RUNNER_TEMP/AuthKey.p8" "$RUNNER_TEMP/venv/bin/python" AppStore/signing.py create "$RUNNER_TEMP/signing"
+          source "$GITHUB_ENV" 2>/dev/null || true
+          KEYCHAIN="$RUNNER_TEMP/release.keychain-db"
+          KEYCHAIN_PASSWORD=$(uuidgen)
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$SIGN_P12" -P "$SIGN_P12_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
+          security list-keychain -d user -s "$KEYCHAIN" login.keychain-db
+          rm -f "$SIGN_P12"
+          security find-identity -v -p codesigning "$KEYCHAIN" | grep -q "Distribution" \
+            || { echo "::error title=Signing::The distribution certificate didn't install."; exit 1; }
+
       - name: Archive
         env:
           ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
@@ -122,35 +142,13 @@ jobs:
               PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
               MARKETING_VERSION="$VERSION" \
               CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
-              CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO > archive.log 2>&1; then
+              CODE_SIGN_STYLE=Manual \
+              CODE_SIGN_IDENTITY="Apple Distribution" \
+              PROVISIONING_PROFILE_SPECIFIER="$SIGN_PROFILE_NAME" > archive.log 2>&1; then
             grep -E "error:" archive.log | head -n 20 | while IFS= read -r line; do echo "::error::$line"; done
             tail -n 60 archive.log
             exit 1
           fi
-
-      - name: Install distribution certificate
-        env:
-          DIST_CERT_P12_BASE64: ${{ secrets.DIST_CERT_P12_BASE64 }}
-          DIST_CERT_PASSWORD: ${{ secrets.DIST_CERT_PASSWORD }}
-        run: |
-          # The same Apple Distribution certificate Kept's release uses. With it
-          # in the keychain, Xcode only has to create the App Store profile,
-          # which the API key can do without any registered devices.
-          if [ -z "$DIST_CERT_P12_BASE64" ]; then
-            echo "::warning title=Distribution certificate::DIST_CERT_P12_BASE64 isn't set, so signing relies on cloud-managed certificates, which need an Admin API key."
-            exit 0
-          fi
-          KEYCHAIN="$RUNNER_TEMP/release.keychain-db"
-          KEYCHAIN_PASSWORD=$(uuidgen)
-          printf '%s' "$DIST_CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/dist.p12"
-          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
-          security set-keychain-settings -lut 21600 "$KEYCHAIN"
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
-          security import "$RUNNER_TEMP/dist.p12" -P "$DIST_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
-          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
-          security list-keychain -d user -s "$KEYCHAIN" login.keychain-db
-          rm -f "$RUNNER_TEMP/dist.p12"
-          echo "::notice title=Distribution certificate::$(security find-identity -v -p codesigning "$KEYCHAIN" | grep -c 'Distribution') distribution identity installed."
 
       - name: Upload to App Store Connect
         env:
@@ -158,7 +156,12 @@ jobs:
           ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
         run: |
           cp AppStore/ExportOptions.plist "$RUNNER_TEMP/ExportOptions.plist"
-          /usr/libexec/PlistBuddy -c "Add :teamID string $APPLE_TEAM_ID" "$RUNNER_TEMP/ExportOptions.plist"
+          PB=/usr/libexec/PlistBuddy
+          $PB -c "Add :teamID string $APPLE_TEAM_ID" "$RUNNER_TEMP/ExportOptions.plist"
+          $PB -c "Set :signingStyle manual" "$RUNNER_TEMP/ExportOptions.plist"
+          $PB -c "Add :signingCertificate string Apple Distribution" "$RUNNER_TEMP/ExportOptions.plist"
+          $PB -c "Add :provisioningProfiles dict" "$RUNNER_TEMP/ExportOptions.plist"
+          $PB -c "Add :provisioningProfiles:$BUNDLE_ID string $SIGN_PROFILE_NAME" "$RUNNER_TEMP/ExportOptions.plist"
           if ! xcodebuild -exportArchive \
               -archivePath "$RUNNER_TEMP/Unlisted.xcarchive" \
               -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
@@ -173,8 +176,14 @@ jobs:
           fi
           echo "::notice title=Uploaded::Build $GITHUB_RUN_NUMBER of version $VERSION uploaded. It appears in TestFlight after Apple finishes processing (about 10-30 minutes)."
 
-      - name: Remove API key
+      - name: Revoke temporary signing and remove API key
         if: always()
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
         run: |
+          if [ -x "$RUNNER_TEMP/venv/bin/python" ] && [ -f "$RUNNER_TEMP/AuthKey.p8" ]; then
+            ASC_KEY_PATH="$RUNNER_TEMP/AuthKey.p8" "$RUNNER_TEMP/venv/bin/python" AppStore/signing.py revoke || true
+          fi
           rm -f "$RUNNER_TEMP/AuthKey.p8"
           security delete-keychain "$RUNNER_TEMP/release.keychain-db" 2>/dev/null || true
