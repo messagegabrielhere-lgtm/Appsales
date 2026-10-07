@@ -27,7 +27,7 @@ struct SettingsView: View {
     }
 
     private var backupData: Data {
-        let backup = KeptBackup(exportedAt: Date(), habits: store.habits, log: store.log, settings: store.settings)
+        let backup = KeptBackup(exportedAt: Date(), habits: store.habits, log: store.log, settings: store.settings, estimates: store.estimates)
         let encoder = JSONEncoder.kept
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         return (try? encoder.encode(backup)) ?? Data()

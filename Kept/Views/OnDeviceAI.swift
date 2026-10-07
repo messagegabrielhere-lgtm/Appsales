@@ -113,6 +113,8 @@ struct OnDeviceAnswerView: View {
     @State private var failure: String?
     @State private var working = false
     @State private var copied = false
+    @State private var savedDays = 0
+    @EnvironmentObject private var store: HabitStore
 
     var body: some View {
         ScrollView {
@@ -139,6 +141,19 @@ struct OnDeviceAnswerView: View {
                     Text(formatted(answer))
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
+
+                    let estimates = EstimateParser.parse(answer)
+                    if !estimates.isEmpty {
+                        Button {
+                            savedDays = store.saveEstimates(estimates)
+                            Haptics.success()
+                        } label: {
+                            Label(savedDays > 0 ? "Saved to Trends" : "Save \(estimates.count) days to Trends",
+                                  systemImage: savedDays > 0 ? "checkmark" : "chart.xyaxis.line")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(savedDays > 0)
+                    }
                 }
             }
             .padding()

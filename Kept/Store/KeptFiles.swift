@@ -115,6 +115,24 @@ enum SettingsFileStore {
     }
 }
 
+/// Daily nutrition estimates pasted back from an AI assistant.
+enum EstimateFileStore {
+    static let fileName = "estimates.json"
+
+    static var fileURL: URL {
+        HabitFileStore.fileURL.deletingLastPathComponent().appendingPathComponent(fileName)
+    }
+
+    static func load(from url: URL = fileURL) -> [DailyEstimate] {
+        JSONFile.loadArray(DailyEstimate.self, from: url).sorted { $0.day < $1.day }
+    }
+
+    @discardableResult
+    static func save(_ estimates: [DailyEstimate], to url: URL = fileURL) -> Bool {
+        JSONFile.save(estimates.sorted { $0.day < $1.day }, to: url)
+    }
+}
+
 /// Everything, in one file, for the "Complete backup" export.
 struct KeptBackup: Codable {
     var format: Int = 2
@@ -122,4 +140,6 @@ struct KeptBackup: Codable {
     var habits: [Habit]
     var log: [LogEntry]
     var settings: KeptSettings
+    /// Added in 2.3; older backups have none.
+    var estimates: [DailyEstimate]? = nil
 }

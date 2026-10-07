@@ -11,6 +11,7 @@ final class HabitStore: ObservableObject {
     @Published private(set) var habits: [Habit] = []
     @Published private(set) var log: [LogEntry] = []
     @Published private(set) var settings = KeptSettings()
+    @Published private(set) var estimates: [DailyEstimate] = []
 
     private let fileURL: URL?
 
@@ -18,6 +19,10 @@ final class HabitStore: ObservableObject {
     /// directory in tests never touches real data.
     private var logURL: URL? {
         fileURL?.deletingLastPathComponent().appendingPathComponent(LogFileStore.fileName)
+    }
+
+    private var estimatesURL: URL? {
+        fileURL?.deletingLastPathComponent().appendingPathComponent(EstimateFileStore.fileName)
     }
 
     private var settingsURL: URL? {
@@ -141,6 +146,10 @@ final class HabitStore: ObservableObject {
     @discardableResult
     func merge(_ backup: KeptBackup) -> BackupMerge.Result {
         let result = BackupMerge.merge(habits: habits, log: log, backupHabits: backup.habits, backupLog: backup.log)
+        if let backupEstimates = backup.estimates {
+            let known = Set(estimates.map(\.day))
+            saveEstimates(backupEstimates.filter { !known.contains($0.day) })
+        }
         if result.addedHabits + result.addedTicks > 0 {
             habits = result.habits
             saveHabits()
@@ -170,6 +179,25 @@ final class HabitStore: ObservableObject {
         LogInsights.recents(kind: kind, in: log)
     }
 
+    // MARK: AI estimates
+
+    /// Saves estimates pasted back from an AI answer; a newer estimate for a day replaces the
+    /// older one. Returns how many days were saved.
+    @discardableResult
+    func saveEstimates(_ new: [DailyEstimate]) -> Int {
+        guard !new.isEmpty else { return 0 }
+        var byDay = Dictionary(uniqueKeysWithValues: estimates.map { ($0.day, $0) })
+        for estimate in new { byDay[estimate.day] = estimate }
+        estimates = byDay.values.sorted { $0.day < $1.day }
+        if let estimatesURL { EstimateFileStore.save(estimates, to: estimatesURL) }
+        return new.count
+    }
+
+    func deleteEstimates() {
+        estimates = []
+        if let estimatesURL { EstimateFileStore.save([], to: estimatesURL) }
+    }
+
     // MARK: Settings
 
     func updateSettings(_ newValue: KeptSettings) {
@@ -194,6 +222,10 @@ final class HabitStore: ObservableObject {
         if loadedLog != log { log = loadedLog }
         let loadedSettings = SettingsFileStore.load(from: settingsURL)
         if loadedSettings != settings { settings = loadedSettings }
+        if let estimatesURL {
+            let loadedEstimates = EstimateFileStore.load(from: estimatesURL)
+            if loadedEstimates != estimates { estimates = loadedEstimates }
+        }
     }
 
     private func saveHabits() {
@@ -214,6 +246,7 @@ final class HabitStore: ObservableObject {
         let store = HabitStore(fileURL: nil)
         store.habits = HabitStore.demoHabits()
         store.log = HabitStore.demoLog()
+        store.estimates = HabitStore.demoEstimates()
         var settings = KeptSettings()
         settings.profile.age = "34"
         settings.profile.sex = "Female"
@@ -261,6 +294,22 @@ final class HabitStore: ObservableObject {
             Habit(name: "Walk 20 minutes", emoji: "🚶", colorName: "green", createdAt: longAgo,
                   completions: days(count: 120, hitRate: 75, skipping: [0])),
         ]
+    }
+
+    /// Six weeks of estimates for the Trends screenshot.
+    nonisolated static func demoEstimates() -> [DailyEstimate] {
+        let today = DayKey.today()
+        return (1...42).map { offset in
+            let wave = Double((offset * 37) % 11) - 5
+            return DailyEstimate(
+                day: today.adding(days: -offset),
+                calories: Int(2250 - Double(offset) * 4 + wave * 40),
+                proteinGrams: Int(105 + Double(42 - offset) * 0.9 + wave * 3),
+                carbsGrams: 220, fatGrams: 80,
+                fiberGrams: Int(18 + Double(42 - offset) * 0.2 + wave),
+                savedAt: Date()
+            )
+        }.sorted { $0.day < $1.day }
     }
 
     /// A week of realistic entries.

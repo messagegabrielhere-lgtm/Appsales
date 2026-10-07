@@ -14,6 +14,7 @@ struct AskAIView: View {
     @State private var showingDisclaimer = false
     @StateObject private var healthReader = HealthReader()
     @State private var healthDays: [DayKey: HealthDay] = [:]
+    @State private var savedMessage: String?
 
     private var days: [DayKey] {
         range.days(endingAt: DayKey.today(), firstDay: firstDay)
@@ -159,6 +160,19 @@ struct AskAIView: View {
             }
 
             Section {
+                SaveAnswerButton(message: $savedMessage)
+                if let savedMessage {
+                    Text(savedMessage)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            } header: {
+                StepHeader(number: 4, title: "Save the answer (optional)")
+            } footer: {
+                Text("Nutrition, protein, weight and weekly review answers end with daily numbers. Copy the whole answer and paste it here to chart it in History > Trends.")
+            }
+
+            Section {
                 DisclosureGroup(isExpanded: $showingPreview) {
                     Text(text)
                         .font(.caption.monospaced())
@@ -190,6 +204,7 @@ struct AskAIView: View {
         }
         .sheet(isPresented: $showingSend) {
             SendToAISheet(prompt: text, title: template.title)
+                .environmentObject(store)
                 .presentationDetents([.medium, .large])
         }
         .sheet(isPresented: $showingDisclaimer) {

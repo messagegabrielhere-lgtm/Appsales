@@ -100,6 +100,11 @@ enum AIPromptTemplate: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    /// These ask the AI to end with daily numbers Fuelprint can save and chart.
+    var asksForEstimates: Bool {
+        [.nutrition, .protein, .weight, .review].contains(self)
+    }
+
     var group: AIPromptGroup {
         switch self {
         case .patterns, .review: return .understand
@@ -474,6 +479,10 @@ enum AIExportBuilder {
 
         lines.append("")
         lines.append(closingNote)
+        if input.template.asksForEstimates {
+            lines.append("")
+            lines.append(EstimateParser.request)
+        }
         lines.append("(Exported from \(Brand.name).)")
         return lines.joined(separator: "\n")
     }

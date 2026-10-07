@@ -9,9 +9,20 @@ struct HistoryView: View {
         let days = LogInsights.historyDays(habits: store.habits, log: store.log, today: today)
         let grouped = Dictionary(grouping: store.log) { $0.day() }
 
-        List(days, id: \.self) { day in
-            NavigationLink(value: day) {
-                HistoryRow(day: day, entries: grouped[day] ?? [], habits: store.habits)
+        List {
+            Section {
+                NavigationLink {
+                    TrendsView()
+                } label: {
+                    Label("Trends: calories, protein, water and more", systemImage: "chart.xyaxis.line")
+                }
+            }
+            Section {
+                ForEach(days, id: \.self) { day in
+                    NavigationLink(value: day) {
+                        HistoryRow(day: day, entries: grouped[day] ?? [], habits: store.habits)
+                    }
+                }
             }
         }
         .navigationTitle("History")
