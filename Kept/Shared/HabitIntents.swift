@@ -293,3 +293,52 @@ struct GetAIPromptIntent: AppIntent {
         return .result(value: prompt)
     }
 }
+
+/// "Tell Fuelprint what I ate", then a whole sentence: "eggs and toast with coffee, then
+/// creatine and a walk." Split into separate entries, timed now, the same way as Speak Your Day.
+struct LogDayIntent: AppIntent {
+    static var title: LocalizedStringResource = "Log Several Things"
+    static var description = IntentDescription("Logs everything you say in one sentence as separate entries: food, drinks, supplements and activity.")
+    static var openAppWhenRun = false
+
+    @Parameter(title: "What you had and did", requestValueDialog: IntentDialog("What did you have?"))
+    var text: String
+
+    init() {}
+
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        let list = SpeechSplitter.list(from: text)
+        let settings = SettingsFileStore.load()
+        var habits = HabitFileStore.load()
+        let today = DayKey.today()
+        let parsed = BulkEntryParser.parse(list, defaultDay: today, habits: habits, glassMilliliters: settings.glassMilliliters)
+        let items = parsed.days.flatMap { day in day.items.map { (day.day, $0) } }
+        guard !items.isEmpty else {
+            return .result(dialog: IntentDialog("There was nothing to log."))
+        }
+
+        let now = Date()
+        var habitsChanged = false
+        for (offset, pair) in items.enumerated() {
+            let (day, item) = pair
+            let date = day == today ? now.addingTimeInterval(TimeInterval(offset)) : LogEntry.untimedDate(on: day, index: offset)
+            _ = LogFileStore.append(LogEntry(
+                kind: item.kind,
+                date: date,
+                text: item.text,
+                milliliters: item.kind == .drink ? item.milliliters : nil,
+                minutes: item.kind == .activity ? item.minutes : nil,
+                untimed: day != today
+            ))
+            if let id = item.habitID, let index = habits.firstIndex(where: { $0.id == id }), !habits[index].isCompleted(on: day) {
+                habits[index].completions.insert(day)
+                habitsChanged = true
+            }
+        }
+        if habitsChanged { _ = HabitFileStore.save(habits) }
+        WidgetCenter.shared.reloadAllTimelines()
+        NotificationCenter.default.post(name: .keptDataChanged, object: nil)
+        let summary = items.map { $0.1.text.lowercased() }.joined(separator: ", ")
+        return .result(dialog: IntentDialog("Logged \(items.count) things: \(summary)."))
+    }
+}

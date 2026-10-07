@@ -14,6 +14,16 @@ struct KeptShortcuts: AppShortcutsProvider {
             systemImageName: "square.and.pencil"
         )
         AppShortcut(
+            intent: LogDayIntent(),
+            phrases: [
+                "Tell \(.applicationName) what I ate",
+                "Log my day in \(.applicationName)",
+                "Tell \(.applicationName) what I had",
+            ],
+            shortTitle: "Log several things",
+            systemImageName: "mic"
+        )
+        AppShortcut(
             intent: AddWaterIntent(),
             phrases: [
                 "Log water in \(.applicationName)",

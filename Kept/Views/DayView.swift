@@ -45,6 +45,14 @@ struct DayView: View {
     @State private var editorRequest: LogEditorRequest?
     @State private var addingHabit = false
     @State private var addingList = false
+    @State private var speaking = false
+    @State private var spokenList: SpokenList?
+
+    struct SpokenList: Identifiable {
+        let id = UUID()
+        let text: String
+    }
+    @State private var pendingSpoken: String?
 
     private var entries: [LogEntry] { store.entries(on: day) }
     private var scheduled: [Habit] { store.habits.filter { $0.isScheduled(on: day) } }
@@ -73,6 +81,24 @@ struct DayView: View {
                         }
                     } icon: {
                         Image(systemName: "list.bullet.clipboard")
+                            .foregroundStyle(Color.accentColor)
+                    }
+                }
+
+                Button {
+                    Haptics.tap()
+                    speaking = true
+                } label: {
+                    Label {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Speak your day")
+                                .foregroundStyle(.primary)
+                            Text("Say what you ate, drank, took and did")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    } icon: {
+                        Image(systemName: "mic.fill")
                             .foregroundStyle(Color.accentColor)
                     }
                 }
@@ -143,6 +169,20 @@ struct DayView: View {
         .listStyle(.insetGrouped)
         .sheet(item: $editorRequest) { request in
             LogEntryEditor(request: request)
+                .environmentObject(store)
+        }
+        .sheet(isPresented: $speaking, onDismiss: {
+            if let text = pendingSpoken, !text.isEmpty {
+                spokenList = SpokenList(text: text)
+            }
+            pendingSpoken = nil
+        }) {
+            VoiceEntryView { text in
+                pendingSpoken = text
+            }
+        }
+        .sheet(item: $spokenList, onDismiss: askForReviewIfDue) { list in
+            BulkEntryView(day: day, initialText: list.text, note: "From what you said. Check each line, then tap Add.")
                 .environmentObject(store)
         }
         .sheet(isPresented: $addingList, onDismiss: askForReviewIfDue) {
