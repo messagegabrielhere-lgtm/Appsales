@@ -1,3 +1,4 @@
+import StoreKit
 import SwiftUI
 
 enum DayTitle {
@@ -37,6 +38,7 @@ extension EnvironmentValues {
 struct DayView: View {
     @EnvironmentObject private var store: HabitStore
     @Environment(\.askAI) private var askAI
+    @Environment(\.requestReview) private var requestReview
     let day: DayKey
     @Binding var pendingKind: LogKind?
 
@@ -143,7 +145,7 @@ struct DayView: View {
             LogEntryEditor(request: request)
                 .environmentObject(store)
         }
-        .sheet(isPresented: $addingList) {
+        .sheet(isPresented: $addingList, onDismiss: askForReviewIfDue) {
             BulkEntryView(day: day)
                 .environmentObject(store)
         }
@@ -177,6 +179,25 @@ struct DayView: View {
         }
     }
 
+    /// After a good moment, and only when `ReviewPrompt` says it's due.
+    private func askForReviewIfDue() {
+        guard !ProcessInfo.processInfo.arguments.contains("-demo") else { return }
+        let defaults = UserDefaults.standard
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
+        let daysLogged = Set(store.log.map { $0.day() }).count
+        guard ReviewPrompt.shouldAsk(
+            daysLogged: daysLogged,
+            lastAskedAt: defaults.object(forKey: "reviewRequestedAt") as? Date,
+            lastAskedVersion: defaults.string(forKey: "reviewRequestedVersion"),
+            currentVersion: version
+        ) else { return }
+        defaults.set(Date(), forKey: "reviewRequestedAt")
+        defaults.set(version, forKey: "reviewRequestedVersion")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            requestReview()
+        }
+    }
+
     private func deleteEntries(at offsets: IndexSet) {
         let current = entries
         withAnimation(.snappy) {
@@ -198,6 +219,7 @@ struct DayView: View {
         let remaining = store.habits.filter { $0.isScheduled(on: day) && !$0.isCompleted(on: day) }
         if remaining.isEmpty {
             Haptics.success()
+            askForReviewIfDue()
         } else {
             Haptics.checkIn(newStreak: StreakCalculator.currentStreak(
                 updated.completions, today: day, schedule: updated.schedule))

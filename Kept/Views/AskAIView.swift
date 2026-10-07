@@ -286,6 +286,16 @@ struct SendToAISheet: View {
     var body: some View {
         NavigationStack {
             List {
+                if OnDeviceAI.status != .unsupported {
+                    Section {
+                        OnDeviceAIRow(prompt: prompt, title: title)
+                    } header: {
+                        Text("On this iPhone")
+                    } footer: {
+                        Text("Apple Intelligence answers here without your data leaving the phone. Best for today or the last week.")
+                    }
+                }
+
                 Section {
                     ForEach(AIAssistant.allCases) { assistant in
                         let destination = assistant.destination(for: prompt)
