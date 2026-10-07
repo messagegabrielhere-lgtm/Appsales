@@ -12,15 +12,37 @@ enum DayTitle {
     }
 }
 
+/// Switches to the Ask AI tab with a period chosen. Set by RootView.
+struct AskAIAction {
+    var perform: (AIExportRange) -> Void = { _ in }
+
+    func callAsFunction(_ range: AIExportRange) {
+        perform(range)
+    }
+}
+
+private struct AskAIActionKey: EnvironmentKey {
+    static let defaultValue = AskAIAction()
+}
+
+extension EnvironmentValues {
+    var askAI: AskAIAction {
+        get { self[AskAIActionKey.self] }
+        set { self[AskAIActionKey.self] = newValue }
+    }
+}
+
 /// Everything for one day: one-tap logging, water, the supplement and routine checklist, and
 /// the timeline of what was logged. Used by Today and by History.
 struct DayView: View {
     @EnvironmentObject private var store: HabitStore
+    @Environment(\.askAI) private var askAI
     let day: DayKey
     @Binding var pendingKind: LogKind?
 
     @State private var editorRequest: LogEditorRequest?
     @State private var addingHabit = false
+    @State private var addingList = false
 
     private var entries: [LogEntry] { store.entries(on: day) }
     private var scheduled: [Habit] { store.habits.filter { $0.isScheduled(on: day) } }
@@ -35,6 +57,24 @@ struct DayView: View {
                 .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
                 .listRowBackground(Color.clear)
 
+                Button {
+                    Haptics.tap()
+                    addingList = true
+                } label: {
+                    Label {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Type or paste a list")
+                                .foregroundStyle(.primary)
+                            Text("A whole day, or many days, one line each")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    } icon: {
+                        Image(systemName: "list.bullet.clipboard")
+                            .foregroundStyle(Color.accentColor)
+                    }
+                }
+
                 WaterRow(
                     milliliters: store.waterMilliliters(on: day),
                     glass: store.settings.glassMilliliters
@@ -42,6 +82,14 @@ struct DayView: View {
                     withAnimation(.snappy) { store.addWater(on: day) }
                     Haptics.tap()
                 }
+            }
+
+            Section {
+                AskAICard(day: day) { range in
+                    Haptics.tap()
+                    askAI(range)
+                }
+                .listRowInsets(EdgeInsets())
             }
 
             Section {
@@ -95,6 +143,10 @@ struct DayView: View {
             LogEntryEditor(request: request)
                 .environmentObject(store)
         }
+        .sheet(isPresented: $addingList) {
+            BulkEntryView(day: day)
+                .environmentObject(store)
+        }
         .sheet(isPresented: $addingHabit) {
             HabitEditorView(mode: .create) { habit in
                 withAnimation(.snappy) { store.add(habit) }
@@ -105,6 +157,7 @@ struct DayView: View {
         }
         .onAppear {
             consume(pendingKind)
+            openListFromLaunchArguments()
         }
     }
 
@@ -112,6 +165,16 @@ struct DayView: View {
         guard let kind else { return }
         editorRequest = .create(kind, DayKey.today())
         pendingKind = nil
+    }
+
+    /// `-screen paste` (used by scripts/screenshots.sh) opens the list editor on Today.
+    private func openListFromLaunchArguments() {
+        let args = ProcessInfo.processInfo.arguments
+        guard day == DayKey.today(), let index = args.firstIndex(of: "-screen"), index + 1 < args.count,
+              args[index + 1] == "paste" else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            addingList = true
+        }
     }
 
     private func deleteEntries(at offsets: IndexSet) {
@@ -142,13 +205,71 @@ struct DayView: View {
     }
 }
 
+/// The way into Ask AI from the day itself, so nobody has to discover the tab.
+private struct AskAICard: View {
+    let day: DayKey
+    let onAsk: (AIExportRange) -> Void
+
+    private var dayRange: AIExportRange? {
+        let today = DayKey.today()
+        if day == today { return .today }
+        if day == today.adding(days: -1) { return .yesterday }
+        return nil
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                Image(systemName: "sparkles")
+                    .font(.title3.weight(.semibold))
+                Text("Ask AI about your log")
+                    .font(.headline)
+            }
+            Text("Nutrition, protein, energy, sleep, gut health and more. Sends to ChatGPT, Claude, Gemini or any assistant.")
+                .font(.subheadline)
+                .opacity(0.9)
+            HStack(spacing: 8) {
+                if let dayRange {
+                    pill(dayRange == .today ? "Today" : "Yesterday", range: dayRange)
+                }
+                pill("This week", range: .week)
+                pill("30 days", range: .month)
+            }
+        }
+        .foregroundStyle(.white)
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            LinearGradient(colors: [Color(red: 0.98, green: 0.45, blue: 0.09), Color(red: 0.88, green: 0.11, blue: 0.28)],
+                           startPoint: .topLeading, endPoint: .bottomTrailing)
+        )
+        .contentShape(Rectangle())
+        .onTapGesture { onAsk(dayRange ?? .week) }
+        .accessibilityElement(children: .contain)
+    }
+
+    private func pill(_ title: String, range: AIExportRange) -> some View {
+        Button {
+            onAsk(range)
+        } label: {
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 7)
+                .background(.white.opacity(0.22), in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Ask AI about \(title.lowercased())")
+    }
+}
+
 /// Four large targets, one per kind of entry. Two taps from here to a logged meal.
 private struct QuickAddGrid: View {
     let onSelect: (LogKind) -> Void
 
     var body: some View {
         HStack(spacing: 10) {
-            ForEach(LogKind.allCases) { kind in
+            ForEach(LogKind.quickAdd) { kind in
                 Button {
                     Haptics.tap()
                     onSelect(kind)

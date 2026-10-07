@@ -75,4 +75,19 @@ final class LogEntryTests: XCTestCase {
         let old = try JSONDecoder.kept.decode([Habit].self, from: Data(legacy.utf8))
         XCTAssertNil(old[0].dose)
     }
+
+    func testUntimedRoundTripsAndIsOnlyWrittenWhenTrue() throws {
+        let untimed = LogEntry(kind: .supplement, date: Date(), text: "Fish oil", untimed: true)
+        let timed = LogEntry(kind: .note, date: Date(), text: "Dentist")
+        let data = try JSONEncoder.kept.encode([untimed, timed])
+        XCTAssertEqual(try JSONDecoder.kept.decode([LogEntry].self, from: data), [untimed, timed])
+        let json = String(decoding: data, as: UTF8.self)
+        XCTAssertEqual(json.components(separatedBy: "untimed").count - 1, 1)
+    }
+
+    func testNewKindsHaveTitlesAndQuickAddKeepsTheOriginalFour() {
+        XCTAssertEqual(LogKind.supplement.title, "Supplement")
+        XCTAssertEqual(LogKind.note.title, "Other")
+        XCTAssertEqual(LogKind.quickAdd, [.food, .drink, .activity, .feeling])
+    }
 }

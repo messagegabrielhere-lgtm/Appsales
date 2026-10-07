@@ -7,4 +7,6 @@ import Foundation
 /// Renaming any of them would orphan existing users' data or remove widgets they already placed.
 enum Brand {
     static let name = "Fuelprint"
+    /// The company that publishes the app.
+    static let company = "Pioneer I LLC"
 }

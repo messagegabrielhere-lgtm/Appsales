@@ -26,11 +26,18 @@ struct LogEntryRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Text(entry.date, format: .dateTime.hour().minute())
-                .font(.subheadline.monospacedDigit())
-                .foregroundStyle(.secondary)
-                .frame(width: 68, alignment: .leading)
-                .padding(.top, 3)
+            Group {
+                if entry.untimed {
+                    Text("–")
+                        .accessibilityLabel("No time")
+                } else {
+                    Text(entry.date, format: .dateTime.hour().minute())
+                }
+            }
+            .font(.subheadline.monospacedDigit())
+            .foregroundStyle(.secondary)
+            .frame(width: 68, alignment: .leading)
+            .padding(.top, 3)
 
             Image(systemName: entry.kind.symbol)
                 .font(.caption.weight(.bold))

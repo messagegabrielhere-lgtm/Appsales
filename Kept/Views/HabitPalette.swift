@@ -17,6 +17,7 @@ enum HabitPalette {
         case "indigo": return .indigo
         case "purple": return .purple
         case "pink": return .pink
+        case "gray": return .gray
         default: return .teal
         }
     }

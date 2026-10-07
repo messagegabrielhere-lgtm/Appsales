@@ -6,6 +6,17 @@ on:
   workflow_dispatch:
 
 jobs:
+  logic-tests:
+    name: Logic tests (Linux, fast)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show Swift version
+        run: swift --version
+      - name: Run model and logic tests
+        run: scripts/test_logic.sh
+
   build-and-test:
     name: Build and test (iOS Simulator)
     runs-on: macos-15

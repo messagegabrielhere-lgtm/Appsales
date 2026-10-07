@@ -183,7 +183,7 @@ struct KeptWidgetView: View {
     /// Deep links into the app's editor, one per kind.
     private var quickLogBar: some View {
         HStack(spacing: 8) {
-            ForEach(LogKind.allCases) { kind in
+            ForEach(LogKind.quickAdd) { kind in
                 Link(destination: URL(string: "kept://log/\(kind.rawValue)")!) {
                     VStack(spacing: 3) {
                         Image(systemName: kind.symbol)

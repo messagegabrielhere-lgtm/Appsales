@@ -101,6 +101,41 @@ final class HabitStore: ObservableObject {
         ))
     }
 
+    /// Adds a typed or pasted list as untimed entries, in the order written, after any untimed
+    /// entries already on each day. Ticks the checklist items lines refer to when asked.
+    /// Returns how many entries were added.
+    @discardableResult
+    func addList(_ days: [BulkEntryParser.Day], tickChecklist: Bool) -> Int {
+        var added: [LogEntry] = []
+        var habitsChanged = false
+        for parsed in days {
+            var index = entries(on: parsed.day).filter(\.untimed).count
+            for item in parsed.items {
+                added.append(LogEntry(
+                    kind: item.kind,
+                    date: LogEntry.untimedDate(on: parsed.day, index: index),
+                    text: item.text,
+                    milliliters: item.kind == .drink ? item.milliliters : nil,
+                    minutes: item.kind == .activity ? item.minutes : nil,
+                    untimed: true
+                ))
+                index += 1
+                if tickChecklist, let id = item.habitID,
+                   let habitIndex = habits.firstIndex(where: { $0.id == id }),
+                   !habits[habitIndex].isCompleted(on: parsed.day) {
+                    habits[habitIndex].completions.insert(parsed.day)
+                    habitsChanged = true
+                }
+            }
+        }
+        guard !added.isEmpty else { return 0 }
+        log.append(contentsOf: added)
+        log.sort { $0.date < $1.date }
+        saveLog()
+        if habitsChanged { saveHabits() }
+        return added.count
+    }
+
     func entries(on day: DayKey) -> [LogEntry] {
         LogInsights.entries(on: day, in: log)
     }
@@ -158,8 +193,15 @@ final class HabitStore: ObservableObject {
         store.habits = HabitStore.demoHabits()
         store.log = HabitStore.demoLog()
         var settings = KeptSettings()
-        settings.aboutMe = "34, 72 kg, run three times a week. Goal: steady energy through the afternoon and better sleep."
+        settings.profile.age = "34"
+        settings.profile.sex = "Female"
+        settings.profile.height = "5 ft 6 in"
+        settings.profile.weight = "150 lb"
+        settings.profile.activityLevel = "Run three times a week"
+        settings.profile.goals = "Steady energy through the afternoon, better sleep"
+        settings.profile.diet = "Mostly whole foods, high protein"
         settings.hasOnboarded = true
+        settings.acceptedAIDisclaimer = true
         store.settings = settings
         return store
     }
@@ -239,37 +281,5 @@ final class HabitStore: ObservableObject {
             }
         }
         return entries.sorted { $0.date < $1.date }
-    }
-}
-
-extension JSONEncoder {
-    static var kept: JSONEncoder {
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .custom { date, encoder in
-            var container = encoder.singleValueContainer()
-            try container.encode(KeptDateCoding.string(from: date))
-        }
-        encoder.outputFormatting = [.sortedKeys]
-        return encoder
-    }
-}
-
-extension JSONDecoder {
-    static var kept: JSONDecoder {
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .custom { decoder in
-            let container = try decoder.singleValueContainer()
-            let raw = try container.decode(String.self)
-            guard let date = KeptDateCoding.date(from: raw) else {
-                throw DecodingError.dataCorrupted(
-                    DecodingError.Context(
-                        codingPath: decoder.codingPath,
-                        debugDescription: "Not an ISO 8601 date: \(raw)"
-                    )
-                )
-            }
-            return date
-        }
-        return decoder
     }
 }

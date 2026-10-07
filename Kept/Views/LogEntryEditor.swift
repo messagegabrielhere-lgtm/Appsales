@@ -27,6 +27,7 @@ struct LogEntryEditor: View {
     @State private var minutes: Int?
     @State private var rating: Int?
     @State private var date: Date
+    @State private var untimed: Bool
     @State private var prepared = false
     @FocusState private var textFocused: Bool
 
@@ -45,6 +46,7 @@ struct LogEntryEditor: View {
             _minutes = State(initialValue: nil)
             _rating = State(initialValue: nil)
             _date = State(initialValue: LogInsights.defaultDate(for: day))
+            _untimed = State(initialValue: false)
         case .edit(let entry):
             _kind = State(initialValue: entry.kind)
             _text = State(initialValue: entry.text)
@@ -53,6 +55,7 @@ struct LogEntryEditor: View {
             _minutes = State(initialValue: entry.minutes)
             _rating = State(initialValue: entry.rating)
             _date = State(initialValue: entry.date)
+            _untimed = State(initialValue: entry.untimed)
         }
     }
 
@@ -79,12 +82,7 @@ struct LogEntryEditor: View {
         NavigationStack {
             Form {
                 Section {
-                    Picker("Type", selection: $kind) {
-                        ForEach(LogKind.allCases) { item in
-                            Text(item.title).tag(item)
-                        }
-                    }
-                    .pickerStyle(.segmented)
+                    kindPicker
                 }
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets())
@@ -113,7 +111,19 @@ struct LogEntryEditor: View {
                 detailSection
 
                 Section {
-                    DatePicker("Time", selection: $date, in: ...Date(), displayedComponents: [.date, .hourAndMinute])
+                    if untimed {
+                        DatePicker("Day", selection: $date, in: ...Date(), displayedComponents: [.date])
+                        Button("Add a Time") {
+                            untimed = false
+                            date = LogInsights.defaultDate(for: DayKey(date))
+                        }
+                    } else {
+                        DatePicker("Time", selection: $date, in: ...Date(), displayedComponents: [.date, .hourAndMinute])
+                    }
+                } footer: {
+                    if untimed {
+                        Text("Added from a list without a time. It stays in the order you wrote it.")
+                    }
                 }
 
                 if let editing {
@@ -147,6 +157,31 @@ struct LogEntryEditor: View {
     }
 
     // MARK: Sections
+
+    private var kindPicker: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(LogKind.allCases) { item in
+                    let selected = item == kind
+                    let tint = HabitPalette.color(item.colorName)
+                    Button {
+                        Haptics.tap()
+                        kind = item
+                    } label: {
+                        Label(item.title, systemImage: item.symbol)
+                            .font(.subheadline.weight(selected ? .semibold : .regular))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(selected ? tint : tint.opacity(0.14), in: Capsule())
+                            .foregroundStyle(selected ? Color.white : Color.primary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(selected ? .isSelected : [])
+                }
+            }
+            .padding(.vertical, 4)
+        }
+    }
 
     private var ratingPicker: some View {
         HStack(spacing: 6) {
@@ -230,7 +265,11 @@ struct LogEntryEditor: View {
                     Text(minutes.map { "\($0) min" } ?? "No duration")
                 }
             }
-        case .feeling:
+        case .supplement:
+            Section("Dose") {
+                TextField("Optional, e.g. 5 g or 2 capsules", text: $amount)
+            }
+        case .feeling, .note:
             EmptyView()
         }
     }
@@ -305,10 +344,11 @@ struct LogEntryEditor: View {
             kind: kind,
             date: date,
             text: trimmedText,
-            amount: kind == .food && !trimmedAmount.isEmpty ? trimmedAmount : nil,
+            amount: (kind == .food || kind == .supplement) && !trimmedAmount.isEmpty ? trimmedAmount : nil,
             milliliters: kind == .drink ? milliliters : nil,
             minutes: kind == .activity ? minutes : nil,
-            rating: kind == .feeling ? rating : nil
+            rating: kind == .feeling ? rating : nil,
+            untimed: untimed
         )
         withAnimation(.snappy) {
             if editing != nil {

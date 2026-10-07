@@ -39,3 +39,35 @@ enum KeptDateCoding {
         self.date(from: string(from: date)) ?? date
     }
 }
+
+extension JSONEncoder {
+    static var kept: JSONEncoder {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .custom { date, encoder in
+            var container = encoder.singleValueContainer()
+            try container.encode(KeptDateCoding.string(from: date))
+        }
+        encoder.outputFormatting = [.sortedKeys]
+        return encoder
+    }
+}
+
+extension JSONDecoder {
+    static var kept: JSONDecoder {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let raw = try container.decode(String.self)
+            guard let date = KeptDateCoding.date(from: raw) else {
+                throw DecodingError.dataCorrupted(
+                    DecodingError.Context(
+                        codingPath: decoder.codingPath,
+                        debugDescription: "Not an ISO 8601 date: \(raw)"
+                    )
+                )
+            }
+            return date
+        }
+        return decoder
+    }
+}

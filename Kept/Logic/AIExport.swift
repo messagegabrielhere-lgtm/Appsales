@@ -5,6 +5,7 @@ enum AIExportRange: String, CaseIterable, Identifiable {
     case today
     case yesterday
     case week
+    case twoWeeks
     case month
 
     var id: String { rawValue }
@@ -14,6 +15,7 @@ enum AIExportRange: String, CaseIterable, Identifiable {
         case .today: return "Today"
         case .yesterday: return "Yesterday"
         case .week: return "7 days"
+        case .twoWeeks: return "14 days"
         case .month: return "30 days"
         }
     }
@@ -27,9 +29,36 @@ enum AIExportRange: String, CaseIterable, Identifiable {
             return [today.adding(days: -1, calendar: calendar)]
         case .week:
             return (0..<7).reversed().map { today.adding(days: -$0, calendar: calendar) }
+        case .twoWeeks:
+            return (0..<14).reversed().map { today.adding(days: -$0, calendar: calendar) }
         case .month:
             return (0..<30).reversed().map { today.adding(days: -$0, calendar: calendar) }
         }
+    }
+}
+
+/// How the question list is grouped on screen.
+enum AIPromptGroup: String, CaseIterable, Identifiable {
+    case understand
+    case nutrition
+    case health
+    case plan
+    case ask
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .understand: return "Understand my days"
+        case .nutrition: return "Nutrition"
+        case .health: return "Health habits"
+        case .plan: return "Plan ahead"
+        case .ask: return "Anything else"
+        }
+    }
+
+    var templates: [AIPromptTemplate] {
+        AIPromptTemplate.allCases.filter { $0.group == self }
     }
 }
 
@@ -38,21 +67,49 @@ enum AIExportRange: String, CaseIterable, Identifiable {
 /// things to raise with a professional rather than advice.
 enum AIPromptTemplate: String, CaseIterable, Identifiable {
     case patterns
+    case review
     case nutrition
-    case supplements
+    case protein
+    case weight
+    case gut
+    case sleep
     case hydration
+    case supplements
+    case heart
     case activity
+    case mealPlan
+    case grocery
+    case doctor
     case custom
 
     var id: String { rawValue }
 
+    var group: AIPromptGroup {
+        switch self {
+        case .patterns, .review: return .understand
+        case .nutrition, .protein, .weight, .gut: return .nutrition
+        case .sleep, .hydration, .supplements, .heart, .activity: return .health
+        case .mealPlan, .grocery, .doctor: return .plan
+        case .custom: return .ask
+        }
+    }
+
     var title: String {
         switch self {
         case .patterns: return "Energy & mood patterns"
+        case .review: return "Weekly review"
         case .nutrition: return "Nutrition estimate"
+        case .protein: return "Protein check"
+        case .weight: return "Weight goal check"
+        case .gut: return "Gut health"
+        case .sleep: return "Sleep & energy"
+        case .hydration: return "Hydration, caffeine & alcohol"
         case .supplements: return "Supplement review"
-        case .hydration: return "Hydration & caffeine"
+        case .heart: return "Heart-healthy habits"
         case .activity: return "Activity & recovery"
+        case .mealPlan: return "Plan tomorrow's meals"
+        case .grocery: return "Grocery list"
+        case .doctor: return "Doctor visit summary"
         case .custom: return "Ask your own question"
         }
     }
@@ -60,10 +117,19 @@ enum AIPromptTemplate: String, CaseIterable, Identifiable {
     var subtitle: String {
         switch self {
         case .patterns: return "What seems to lift or drain you, with experiments to test it."
+        case .review: return "Wins, what to improve, scores and one focus for next week."
         case .nutrition: return "Calories, protein, carbs, fat and fiber per day, gaps flagged."
-        case .supplements: return "Consistency, timing, and questions for your pharmacist."
+        case .protein: return "Grams per day against your weight and goals, and easy ways to close a gap."
+        case .weight: return "Your energy needs against what you eat, and the changes that matter most."
+        case .gut: return "Fiber, plant variety, fermented foods, and links to digestion."
+        case .sleep: return "Caffeine, alcohol and late meals against how you slept and felt."
         case .hydration: return "Fluids, caffeine and alcohol per day, and their timing."
+        case .supplements: return "Consistency, timing, and questions for your pharmacist."
+        case .heart: return "Sodium, fats, fiber, alcohol and activity, with questions for your doctor."
         case .activity: return "What you did, how you fueled it, how you felt after."
+        case .mealPlan: return "Realistic meals for tomorrow from foods you already like."
+        case .grocery: return "Next week's list from what you eat, with a few smart swaps."
+        case .doctor: return "A one-page summary and questions to bring to your appointment."
         case .custom: return "Anything you want to know about your log."
         }
     }
@@ -71,10 +137,19 @@ enum AIPromptTemplate: String, CaseIterable, Identifiable {
     var symbol: String {
         switch self {
         case .patterns: return "waveform.path.ecg"
+        case .review: return "checkmark.seal"
         case .nutrition: return "chart.pie"
-        case .supplements: return "pills"
+        case .protein: return "dumbbell"
+        case .weight: return "scalemass"
+        case .gut: return "leaf"
+        case .sleep: return "bed.double"
         case .hydration: return "drop"
+        case .supplements: return "pills"
+        case .heart: return "heart.text.square"
         case .activity: return "figure.run"
+        case .mealPlan: return "fork.knife"
+        case .grocery: return "cart"
+        case .doctor: return "stethoscope"
         case .custom: return "questionmark.bubble"
         }
     }
@@ -149,6 +224,118 @@ enum AIPromptTemplate: String, CaseIterable, Identifiable {
 
             \(AIPromptTemplate.notAdvice)
             """
+        case .review:
+            return """
+            Please give me an honest review of the period in my log below.
+
+            1. Three things that went well, citing the days.
+            2. Three things to improve, most important first.
+            3. Score each from 1 to 10 with one line of reasoning: food quality, protein, \
+            hydration, alcohol, activity, and consistency with my checklist.
+            4. One small, specific focus for next week.
+
+            Be direct and encouraging. \(AIPromptTemplate.notAdvice)
+            """
+        case .protein:
+            return """
+            Please check my protein intake from the log below.
+
+            1. Estimate protein in grams per day and list the main sources. Use the grams I \
+            wrote where I gave them, such as "30g protein shake".
+            2. Compare with common ranges for my body weight and goals from About Me, stating \
+            the range you use. If my weight isn't given, use general adult guidance and say so.
+            3. Show how protein is spread across the day.
+            4. Suggest easy ways to close any gap using foods I already eat.
+
+            Give ranges rather than false precision. \(AIPromptTemplate.notAdvice)
+            """
+        case .weight:
+            return """
+            Please compare what I eat with my weight goal, using About Me (age, sex, height, \
+            weight, activity level, goals) and the log below.
+
+            1. Estimate my daily energy needs as a range and explain the method.
+            2. Estimate my average daily intake as a range, including drinks and alcohol.
+            3. Say whether the two are consistent with my goal and what trend to expect.
+            4. Name the three changes with the biggest effect that fit how I already eat.
+
+            If key details are missing from About Me, say what you need. Give ranges rather \
+            than false precision. \(AIPromptTemplate.notAdvice)
+            """
+        case .gut:
+            return """
+            Please look at my gut health habits in the log below.
+
+            1. Estimate fiber per day and count the different plant foods across the period.
+            2. List fermented foods, probiotics and prebiotics, and how often I had them.
+            3. Look for links between foods or drinks and anything I noted about digestion, \
+            saying how confident you are.
+            4. Suggest small additions using foods I already like.
+
+            \(AIPromptTemplate.notAdvice)
+            """
+        case .sleep:
+            return """
+            Please look at how caffeine, alcohol, late meals and activity line up with what I \
+            noted about sleep, energy and mood.
+
+            1. For each day, note my last caffeine and any alcohol, with times where given. \
+            Where entries have no time, use their order in the day.
+            2. Point out late or heavy meals and what followed.
+            3. List the patterns you see, citing days and saying how confident you are.
+            4. Suggest two experiments to try next week.
+
+            \(AIPromptTemplate.notAdvice)
+            """
+        case .heart:
+            return """
+            Please review my log for habits commonly discussed in relation to heart health.
+
+            1. Give a rough picture of sodium and saturated fat, naming the biggest contributors.
+            2. Estimate fiber and whole-food variety.
+            3. Total my alcohol per week, and my activity minutes per week compared with \
+            common guidelines.
+            4. List questions worth asking my doctor, taking into account my medical history \
+            and medications in About Me.
+
+            Do not diagnose anything. \(AIPromptTemplate.notAdvice)
+            """
+        case .mealPlan:
+            return """
+            Please plan my meals for tomorrow, based on what I usually eat and enjoy in the log \
+            below and my goals in About Me.
+
+            1. Breakfast, lunch, dinner and snacks, each with a rough portion and protein amount.
+            2. Mostly foods I already eat, with one or two upgrades marked as such.
+            3. Respect any allergies, intolerances and diet preferences in About Me.
+            4. Rough totals for the day: calories and protein as ranges.
+
+            \(AIPromptTemplate.notAdvice)
+            """
+        case .grocery:
+            return """
+            Please make my grocery list for next week from the log below.
+
+            1. Base it on the foods and drinks I have most often.
+            2. Add a few healthier swaps, marked as swaps, that fit my goals in About Me.
+            3. Group items by store section with rough quantities for one week.
+            4. Respect any allergies, intolerances and diet preferences in About Me.
+            """
+        case .doctor:
+            return """
+            Please prepare a one-page summary I can bring to my doctor, from the log below and \
+            About Me.
+
+            1. My typical eating pattern and meal timing.
+            2. Alcohol, caffeine and nicotine, per week.
+            3. Activity per week.
+            4. Supplements and medications, with doses and how consistently I took them.
+            5. Symptoms or notes I logged, with dates.
+            6. Five questions I could ask, taking into account my medical history and \
+            medications.
+
+            Keep it plain and factual. Do not diagnose or recommend treatment.
+            """
         case .custom:
             let question = customQuestion.trimmingCharacters(in: .whitespacesAndNewlines)
             return """
@@ -171,11 +358,13 @@ enum AIExportBuilder {
         var log: [LogEntry]
         /// Nil or blank to leave the About Me section out.
         var aboutMe: String?
+        /// Age, height, weight, history and so on. Nil to leave out.
+        var profile: UserProfile? = nil
         var calendar: Calendar = .current
     }
 
     /// Width the entry-type column is padded to, so entries line up.
-    static let kindColumnWidth = 10
+    static let kindColumnWidth = 12
 
     static func build(_ input: Input) -> String {
         let calendar = input.calendar
@@ -185,9 +374,14 @@ enum AIExportBuilder {
         lines.append(input.template.instructions(customQuestion: input.customQuestion))
         lines.append("")
 
-        if let about = input.aboutMe?.trimmingCharacters(in: .whitespacesAndNewlines), !about.isEmpty {
+        let profileLines = input.profile?.promptLines ?? []
+        let notes = input.aboutMe?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !profileLines.isEmpty || !notes.isEmpty {
             lines.append("ABOUT ME")
-            lines.append(about)
+            lines.append(contentsOf: profileLines)
+            if !notes.isEmpty {
+                lines.append(profileLines.isEmpty ? notes : "Other notes: \(notes)")
+            }
             lines.append("")
         }
 
@@ -200,6 +394,10 @@ enum AIExportBuilder {
             }
         }
         lines.append("Times are local (\(calendar.timeZone.identifier)), 24-hour clock.")
+        let included = Set(days)
+        if input.log.contains(where: { $0.untimed && included.contains($0.day(calendar: calendar)) }) {
+            lines.append("Entries marked --:-- have no time; they are in the order I wrote them.")
+        }
         lines.append("Feeling ratings run from 1 (awful) to 5 (great).")
 
         if !input.habits.isEmpty {
@@ -240,14 +438,18 @@ enum AIExportBuilder {
         }
 
         lines.append("")
+        lines.append(closingNote)
         lines.append("(Exported from \(Brand.name).)")
         return lines.joined(separator: "\n")
     }
 
+    /// Added to every prompt, whatever the template.
+    static let closingNote = "You are an AI assistant, not my doctor, and this is not medical advice. If anything in my log or About Me could need medical attention, tell me plainly to check with a professional."
+
     // MARK: Pieces, internal for tests
 
     static func line(for entry: LogEntry, calendar: Calendar) -> String {
-        let time = formatter("HH:mm", calendar: calendar).string(from: entry.date)
+        let time = entry.untimed ? "--:--" : formatter("HH:mm", calendar: calendar).string(from: entry.date)
         let kind = entry.kind.title.padding(toLength: kindColumnWidth, withPad: " ", startingAt: 0)
         let text = entry.text
             .replacingOccurrences(of: "\r\n", with: " ")

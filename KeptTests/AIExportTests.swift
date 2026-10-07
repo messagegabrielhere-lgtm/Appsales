@@ -31,29 +31,29 @@ final class AIExportTests: XCTestCase {
 
         XCTAssertEqual(
             line(LogEntry(kind: .food, date: TestCalendar.date(2026, 9, 19, 7, 45), text: "Oatmeal", amount: "1 bowl")),
-            "07:45  Food      Oatmeal (1 bowl)"
+            "07:45  Food        Oatmeal (1 bowl)"
         )
         XCTAssertEqual(
             line(LogEntry(kind: .drink, date: TestCalendar.date(2026, 9, 19, 8), text: "Water", milliliters: 500)),
-            "08:00  Drink     Water (500 ml)"
+            "08:00  Drink       Water (500 ml)"
         )
         XCTAssertEqual(
             line(LogEntry(kind: .activity, date: TestCalendar.date(2026, 9, 19, 18, 15), text: "Run", minutes: 35)),
-            "18:15  Activity  Run (35 min)"
+            "18:15  Activity    Run (35 min)"
         )
         XCTAssertEqual(
             line(LogEntry(kind: .feeling, date: TestCalendar.date(2026, 9, 19, 21), text: "tired", rating: 3)),
-            "21:00  Feeling   3/5 tired"
+            "21:00  Feeling     3/5 tired"
         )
         XCTAssertEqual(
             line(LogEntry(kind: .feeling, date: TestCalendar.date(2026, 9, 19, 21), text: "", rating: 4)),
-            "21:00  Feeling   4/5"
+            "21:00  Feeling     4/5"
         )
     }
 
     func testMultiLineTextIsFlattenedToOneLine() {
         let entry = LogEntry(kind: .food, date: TestCalendar.date(2026, 9, 19, 12), text: "Soup\nand bread")
-        XCTAssertEqual(AIExportBuilder.line(for: entry, calendar: calendar), "12:00  Food      Soup and bread")
+        XCTAssertEqual(AIExportBuilder.line(for: entry, calendar: calendar), "12:00  Food        Soup and bread")
     }
 
     func testHabitDescriptions() {
@@ -116,13 +116,13 @@ final class AIExportTests: XCTestCase {
         XCTAssertTrue(lines.contains("## Saturday 19 September 2026"))
         XCTAssertTrue(lines.contains("Checklist: Vitamin D done; Magnesium rest day"))
         XCTAssertTrue(lines.contains("Water total: 500 ml"))
-        XCTAssertTrue(lines.contains("07:45  Food      Oatmeal (1 bowl)"))
+        XCTAssertTrue(lines.contains("07:45  Food        Oatmeal (1 bowl)"))
 
         XCTAssertTrue(lines.contains("## Sunday 20 September 2026"))
         XCTAssertTrue(lines.contains("Nothing logged."))
 
         XCTAssertTrue(lines.contains("Checklist: Vitamin D missed; Magnesium missed; New thing missed"))
-        XCTAssertTrue(lines.contains("16:00  Feeling   2/5 Slump"))
+        XCTAssertTrue(lines.contains("16:00  Feeling     2/5 Slump"))
 
         XCTAssertFalse(text.contains("Outside the range"))
         XCTAssertFalse(text.contains("ABOUT ME"))
@@ -176,5 +176,65 @@ final class AIExportTests: XCTestCase {
         XCTAssertNotNil(checklist, rows.joined(separator: "\n"))
         XCTAssertNotNil(food, rows.joined(separator: "\n"))
         XCTAssertLessThan(checklist!, food!)
+    }
+
+    // MARK: 2.1
+
+    func testProfileLinesComeFirstInAboutMe() {
+        var profile = UserProfile()
+        profile.age = "39"
+        profile.height = "6 ft 4 in"
+        profile.medications = "None"
+        var input = sampleInput(aboutMe: "Night shifts")
+        input.profile = profile
+        let text = AIExportBuilder.build(input)
+        XCTAssertTrue(text.contains("ABOUT ME\nAge: 39\nHeight: 6 ft 4 in\nMedications: None\nOther notes: Night shifts\n"), text)
+    }
+
+    func testEmptyProfileAndNotesLeaveAboutMeOut() {
+        var input = sampleInput(aboutMe: " ")
+        input.profile = UserProfile()
+        XCTAssertFalse(AIExportBuilder.build(input).contains("ABOUT ME"))
+    }
+
+    func testUntimedEntriesShowNoTimeAndAreExplained() {
+        let entry = LogEntry(kind: .supplement, date: TestCalendar.date(2026, 9, 19, 12), text: "5g creatine", untimed: true)
+        XCTAssertEqual(AIExportBuilder.line(for: entry, calendar: calendar), "--:--  Supplement  5g creatine")
+
+        var input = sampleInput()
+        XCTAssertFalse(AIExportBuilder.build(input).contains("--:--"))
+        input.log.append(entry)
+        XCTAssertTrue(AIExportBuilder.build(input).contains("Entries marked --:-- have no time"))
+    }
+
+    func testEveryPromptEndsWithTheMedicalReminder() {
+        for template in AIPromptTemplate.allCases {
+            let text = AIExportBuilder.build(sampleInput(template: template))
+            XCTAssertTrue(text.contains(AIExportBuilder.closingNote), template.rawValue)
+        }
+    }
+
+    func testEveryTemplateBelongsToAGroupOnce() {
+        let grouped = AIPromptGroup.allCases.flatMap(\.templates)
+        XCTAssertEqual(grouped.count, AIPromptTemplate.allCases.count)
+        XCTAssertEqual(Set(grouped), Set(AIPromptTemplate.allCases))
+    }
+
+    func testTwoWeeksIsFourteenDays() {
+        let days = AIExportRange.twoWeeks.days(endingAt: TestCalendar.day(2026, 9, 21), calendar: calendar)
+        XCTAssertEqual(days.count, 14)
+        XCTAssertEqual(days.first, TestCalendar.day(2026, 9, 8))
+    }
+
+    func testAssistantLinksCarryThePromptUntilItIsTooLong() {
+        let short = AIAssistant.chatgpt.destination(for: "Hi & bye?")
+        XCTAssertTrue(short.prefilled)
+        XCTAssertEqual(short.url.absoluteString, "https://chatgpt.com/?q=Hi%20%26%20bye%3F")
+
+        let long = AIAssistant.claude.destination(for: String(repeating: "steak ", count: 2000))
+        XCTAssertFalse(long.prefilled)
+        XCTAssertEqual(long.url.absoluteString, "https://claude.ai/new")
+
+        XCTAssertFalse(AIAssistant.gemini.destination(for: "Hi").prefilled)
     }
 }

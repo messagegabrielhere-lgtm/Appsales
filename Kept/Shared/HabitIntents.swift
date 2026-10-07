@@ -87,12 +87,14 @@ struct CompleteHabitIntent: AppIntent {
 
 // MARK: Logging
 
-/// The four entry kinds, as Siri and Shortcuts see them.
+/// The entry kinds, as Siri and Shortcuts see them.
 enum LogKindAppEnum: String, AppEnum {
     case food
     case drink
     case activity
     case feeling
+    case supplement
+    case note
 
     static var typeDisplayRepresentation: TypeDisplayRepresentation = "Entry Type"
 
@@ -101,6 +103,8 @@ enum LogKindAppEnum: String, AppEnum {
         .drink: "drink",
         .activity: "activity",
         .feeling: "feeling",
+        .supplement: "supplement",
+        .note: "note",
     ]
 
     var logKind: LogKind {

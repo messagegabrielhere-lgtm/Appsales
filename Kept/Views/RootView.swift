@@ -12,6 +12,7 @@ struct RootView: View {
     @EnvironmentObject private var store: HabitStore
     @Environment(\.scenePhase) private var scenePhase
     @State private var tab: Tab = .today
+    @State private var aiRange: AIExportRange = .week
     @State private var pendingKind: LogKind?
     @State private var showingOnboarding = false
     @State private var showingWidgetShowcase = false
@@ -29,11 +30,15 @@ struct RootView: View {
             .tag(Tab.history)
 
             NavigationStack {
-                AskAIView()
+                AskAIView(range: $aiRange)
             }
             .tabItem { Label("Ask AI", systemImage: "sparkles") }
             .tag(Tab.ai)
         }
+        .environment(\.askAI, AskAIAction { range in
+            aiRange = range
+            withAnimation(.snappy) { tab = .ai }
+        })
         .sheet(isPresented: $showingOnboarding) {
             OnboardingView()
                 .environmentObject(store)
@@ -67,7 +72,7 @@ struct RootView: View {
             switch args[index + 1] {
             case "history":
                 tab = .history
-            case "ai":
+            case "ai", "send":
                 tab = .ai
             case "log":
                 pendingKind = .food

@@ -3,6 +3,7 @@ import SwiftUI
 struct SettingsView: View {
     @EnvironmentObject private var store: HabitStore
     @Environment(\.dismiss) private var dismiss
+    @State private var showingDisclaimer = false
 
     private var version: String {
         let short = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "2.0"
@@ -54,9 +55,14 @@ struct SettingsView: View {
                         Label("Supplements & Routines", systemImage: "checklist")
                     }
                     NavigationLink {
-                        AboutMeEditor()
+                        ProfileEditor()
                     } label: {
-                        Label("About Me for AI", systemImage: "person.text.rectangle")
+                        Label("My Profile for AI", systemImage: "person.text.rectangle")
+                    }
+                    Button {
+                        showingDisclaimer = true
+                    } label: {
+                        Label("AI Is Not Medical Advice", systemImage: "exclamationmark.shield")
                     }
                 }
 
@@ -98,10 +104,17 @@ struct SettingsView: View {
                         Text(version)
                             .foregroundStyle(.secondary)
                     }
+                } footer: {
+                    Text("\(Brand.name) is made by \(Brand.company).")
                 }
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
+            .sheet(isPresented: $showingDisclaimer) {
+                AIDisclaimerView(alreadyAccepted: true) {
+                    showingDisclaimer = false
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
