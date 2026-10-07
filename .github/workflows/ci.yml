@@ -24,8 +24,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Show Xcode version
-        run: xcodebuild -version
+      - name: Use the newest stable Xcode
+        # Apple's on-device AI (FoundationModels) needs the iOS 26 SDK or later, so CI builds
+        # with the newest Xcode on the runner, as releases do on the Mac.
+        run: |
+          ls -d /Applications/Xcode*.app
+          newest=$(ls -d /Applications/Xcode_*.app | grep -viE "beta|release_candidate|_rc" | sort -V | tail -1)
+          echo "Selecting $newest"
+          sudo xcode-select -s "$newest/Contents/Developer"
+          xcodebuild -version
+          xcrun simctl list runtimes | grep iOS
 
       - name: Install XcodeGen
         run: brew install xcodegen
