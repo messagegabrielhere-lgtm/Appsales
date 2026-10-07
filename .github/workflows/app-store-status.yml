@@ -1,0 +1,34 @@
+name: App Store status
+
+# Read-only: prints the review state of a version and checks every submitted field against
+# the listing file. Changes nothing in App Store Connect. Same secrets as Publish to App Store.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to check"
+        required: true
+        default: "2.0.0"
+      listing:
+        description: "Listing file"
+        required: true
+        default: "docs/listing/v2.0.md"
+
+jobs:
+  status:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+      APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+      APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install --quiet pyjwt cryptography requests
+      - name: Audit
+        run: python3 scripts/app_store_status.py --version "${{ inputs.version }}" --listing "${{ inputs.listing }}"
