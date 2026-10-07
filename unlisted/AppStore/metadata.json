@@ -1,0 +1,21 @@
+{
+  "name": "Unlisted: Remove My Info",
+  "subtitle": "Erase your family from the web",
+  "primaryCategory": "UTILITIES",
+  "secondaryCategory": "LIFESTYLE",
+  "copyright": "2026 Unlisted",
+  "privacyPolicyUrl": "https://github.com/messagegabrielhere-lgtm/Appsales/blob/unlisted/unlisted/PRIVACY.md",
+  "supportUrl": "https://github.com/messagegabrielhere-lgtm/Appsales/blob/unlisted/unlisted/SUPPORT.md",
+  "promotionalText": "Find where your family's name, address and phone number show up online, then remove them step by step. Free, no account, and nothing leaves your phone.",
+  "description": "Your name, address, phone number, relatives and even your kids' details are for sale on dozens of people-search sites. Unlisted walks your whole family through finding them and taking them down, and locks down your identity while you're at it.\n\nSCAN\nReady-made searches for every name, nickname, city, email, phone number and username in your family. Log what you find, and Unlisted tells you the next step.\n\nREMOVE\nStep-by-step opt-outs for 27 of the biggest people-search sites, data brokers and search engines, including Spokeo, Whitepages, BeenVerified, TruePeopleSearch, FastPeopleSearch and the Intelius group. Track every request for every family member, and get reminded to re-check, because brokers re-list people.\n\nLETTERS\nReady-to-send letters, filled in for you:\n• Data broker deletion requests\n• Website and news removal requests\n• \"Do not share\" requests for banks and insurers\n• Child credit freeze letters for all three bureaus\n• Wayback Machine removal, with the Internet Archive exclusion form filled in for each site\n• License plate camera data requests\nYou review every word and send it from your own Mail app.\n\nPROTECT\nA family checklist for the steps that matter most: credit freezes, IRS Identity Protection PINs, SIM-swap protection, 2-step login, kids' credit freezes, school directory opt-outs, a family safe word against voice-cloning scams, and more. Adults, kids and the household each get their own steps.\n\nPRIVATE BY DESIGN\n• No account, no ads, no analytics, no tracking\n• Everything stays on your iPhone, in a file iOS encrypts\n• The app never asks for a Social Security number\n• Reminders never show names on your lock screen\n• Export or delete all your data any time\n\nUnlisted is free. It gives general privacy guidance, not legal advice.",
+  "keywords": "privacy,data broker,opt out,people search,identity theft,credit freeze,remove,delete info,family",
+  "reviewNotes": "No sign-in is required. On first launch, enter any first name to reach the main screens. The app has no server and makes no network requests of its own: searches and opt-out pages open in Safari, and letters open in the Mail composer for the user to send. All data is stored on the device.",
+  "reviewEmail": "messagegabrielhere@gmail.com",
+  "screenshots": [
+    "1-home.png",
+    "2-scan.png",
+    "3-remove.png",
+    "4-letters.png",
+    "5-protect.png"
+  ]
+}

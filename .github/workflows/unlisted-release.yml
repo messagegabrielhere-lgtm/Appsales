@@ -128,6 +128,30 @@ jobs:
             exit 1
           fi
 
+      - name: Install distribution certificate
+        env:
+          DIST_CERT_P12_BASE64: ${{ secrets.DIST_CERT_P12_BASE64 }}
+          DIST_CERT_PASSWORD: ${{ secrets.DIST_CERT_PASSWORD }}
+        run: |
+          # The same Apple Distribution certificate Kept's release uses. With it
+          # in the keychain, Xcode only has to create the App Store profile,
+          # which the API key can do without any registered devices.
+          if [ -z "$DIST_CERT_P12_BASE64" ]; then
+            echo "::warning title=Distribution certificate::DIST_CERT_P12_BASE64 isn't set, so signing relies on cloud-managed certificates, which need an Admin API key."
+            exit 0
+          fi
+          KEYCHAIN="$RUNNER_TEMP/release.keychain-db"
+          KEYCHAIN_PASSWORD=$(uuidgen)
+          printf '%s' "$DIST_CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/dist.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/dist.p12" -P "$DIST_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
+          security list-keychain -d user -s "$KEYCHAIN" login.keychain-db
+          rm -f "$RUNNER_TEMP/dist.p12"
+          echo "::notice title=Distribution certificate::$(security find-identity -v -p codesigning "$KEYCHAIN" | grep -c 'Distribution') distribution identity installed."
+
       - name: Upload to App Store Connect
         env:
           ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
@@ -151,4 +175,6 @@ jobs:
 
       - name: Remove API key
         if: always()
-        run: rm -f "$RUNNER_TEMP/AuthKey.p8"
+        run: |
+          rm -f "$RUNNER_TEMP/AuthKey.p8"
+          security delete-keychain "$RUNNER_TEMP/release.keychain-db" 2>/dev/null || true

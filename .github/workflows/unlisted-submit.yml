@@ -1,0 +1,67 @@
+name: Unlisted submit
+
+# Fills in Unlisted's App Store listing (name, description, keywords,
+# screenshots, categories, age rating, free price, availability, review notes),
+# attaches the uploaded build, and submits it for App Review.
+# Run it after "Unlisted release" has uploaded a build: start it from the
+# Actions tab, or change unlisted/AppStore/SUBMIT_VERSION on the unlisted branch.
+# Safe to re-run; it updates the listing in place.
+#
+# Apple only lets the account holder answer App Privacy on the website, so do
+# that once first. Optional secrets for the App Review contact (kept private):
+#   UNLISTED_REVIEW_FIRST_NAME, UNLISTED_REVIEW_LAST_NAME, UNLISTED_REVIEW_PHONE
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - unlisted
+    paths:
+      - 'unlisted/AppStore/SUBMIT_VERSION'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: unlisted-submit
+  cancel-in-progress: false
+
+jobs:
+  submit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    defaults:
+      run:
+        working-directory: unlisted
+    env:
+      BUNDLE_ID: ${{ vars.UNLISTED_BUNDLE_ID || 'com.messagegabrielhere.unlisted' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write API key
+        env:
+          ASC_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+        run: |
+          if [ -z "$ASC_KEY_P8" ]; then echo "::error::APP_STORE_CONNECT_API_KEY_P8 isn't set."; exit 1; fi
+          python3 AppStore/write_key.py "$RUNNER_TEMP/AuthKey.p8"
+          chmod 600 "$RUNNER_TEMP/AuthKey.p8"
+
+      - name: Install tools
+        run: |
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install --quiet "pyjwt[crypto]==2.9.0"
+
+      - name: Fill in the listing and submit
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+          REVIEW_FIRST_NAME: ${{ secrets.UNLISTED_REVIEW_FIRST_NAME }}
+          REVIEW_LAST_NAME: ${{ secrets.UNLISTED_REVIEW_LAST_NAME }}
+          REVIEW_PHONE: ${{ secrets.UNLISTED_REVIEW_PHONE }}
+        run: |
+          export ASC_KEY_PATH="$RUNNER_TEMP/AuthKey.p8"
+          export VERSION="$(tr -d '[:space:]' < RELEASE_VERSION)"
+          "$RUNNER_TEMP/venv/bin/python" AppStore/submit.py AppStore/metadata.json AppStore/screenshots
+
+      - name: Remove API key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/AuthKey.p8"
