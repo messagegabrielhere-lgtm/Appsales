@@ -12,6 +12,17 @@ name: Unlisted submit
 #   UNLISTED_REVIEW_FIRST_NAME, UNLISTED_REVIEW_LAST_NAME, UNLISTED_REVIEW_PHONE
 on:
   workflow_dispatch:
+    inputs:
+      # Read straight from the event file and masked, so they never appear in logs.
+      review_first_name:
+        description: "App Review contact first name (optional)"
+        required: false
+      review_last_name:
+        description: "App Review contact last name (optional)"
+        required: false
+      review_phone:
+        description: "App Review contact phone, e.g. +1 555 555 0100 (optional)"
+        required: false
   push:
     branches:
       - unlisted

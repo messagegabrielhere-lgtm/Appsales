@@ -349,12 +349,25 @@ def upload_screenshots(lid, folder, files):
         notice("Screenshots", f"Uploaded {len(uploaded)} iPhone screenshots.")
 
 
+def run_input(name):
+    """A workflow_dispatch input, read from the event file so it's never echoed."""
+    try:
+        with open(os.environ["GITHUB_EVENT_PATH"]) as f:
+            value = ((json.load(f).get("inputs") or {}).get(name) or "").strip()
+    except (KeyError, OSError, ValueError):
+        return ""
+    if value:
+        print(f"::add-mask::{value}", flush=True)
+    return value
+
+
 def review_details(vid, meta):
     attrs = {"contactEmail": meta["reviewEmail"], "notes": meta["reviewNotes"], "demoAccountRequired": False}
     for env, key in (("REVIEW_FIRST_NAME", "contactFirstName"), ("REVIEW_LAST_NAME", "contactLastName"),
                      ("REVIEW_PHONE", "contactPhone")):
-        if os.environ.get(env, "").strip():
-            attrs[key] = os.environ[env].strip()
+        value = os.environ.get(env, "").strip() or run_input(env.lower())
+        if value:
+            attrs[key] = value
     s, r = api("GET", f"/v1/appStoreVersions/{vid}/appStoreReviewDetail")
     existing = r.get("data") if ok(s) else None
     if existing:
@@ -438,6 +451,8 @@ def submit(app_id, vid):
 
 
 def main():
+    for name in ("review_first_name", "review_last_name", "review_phone"):
+        run_input(name)
     meta = json.load(open(sys.argv[1]))
     folder = sys.argv[2]
     version = os.environ["VERSION"]
