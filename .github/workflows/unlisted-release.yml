@@ -15,6 +15,8 @@ name: Unlisted release
 # Optional repository variables: APPLE_TEAM_ID (defaults to MAP974T827) and
 # UNLISTED_BUNDLE_ID (defaults to com.messagegabrielhere.unlisted).
 on:
+  # Or start it by hand from the Actions tab.
+  workflow_dispatch:
   push:
     tags:
       - 'unlisted-v*'
