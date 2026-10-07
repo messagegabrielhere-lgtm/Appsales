@@ -74,8 +74,12 @@ def api(method, path, body=None):
 
 
 def why(resp):
-    errs = resp.get("errors") or []
-    return " | ".join(f"{e.get('title', '')}: {e.get('detail', '')}".strip(": ") for e in errs)[:900] or "no detail"
+    errs = list(resp.get("errors") or [])
+    # Submission errors list the actual reasons under meta.associatedErrors.
+    for e in list(errs):
+        for group in ((e.get("meta") or {}).get("associatedErrors") or {}).values():
+            errs += group if isinstance(group, list) else []
+    return " | ".join(f"{e.get('title', '')}: {e.get('detail', '')}".strip(": ") for e in errs)[:1800] or "no detail"
 
 
 def ok(status):
