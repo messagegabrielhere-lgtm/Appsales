@@ -153,6 +153,7 @@ AGE_LEVELS = {
 AGE_FLAGS = {
     "gambling", "unrestrictedWebAccess", "lootBox", "messagingAndChat", "parentalControls",
     "ageAssurance", "userGeneratedContent", "advertising", "healthOrWellnessTopics", "seventeenPlus",
+    "socialMedia", "socialMediaAgeRestricted",
 }
 
 
