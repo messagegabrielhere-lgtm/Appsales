@@ -10,8 +10,13 @@ struct BulkEntryView: View {
 
     /// Where lines go when the list has no dates.
     let day: DayKey
+    /// Text to start with, from an imported file.
+    var initialText: String = ""
+    /// Shown above the list, such as what an import contained.
+    var note: String? = nil
 
     @State private var text = ""
+    @State private var result = BulkEntryParser.Result()
     @State private var overrides: [String: LogKind] = [:]
     @State private var tickChecklist = true
     @State private var addPreambleToProfile = false
@@ -22,7 +27,7 @@ struct BulkEntryView: View {
         ProcessInfo.processInfo.arguments.contains("-demo")
     }
 
-    private var result: BulkEntryParser.Result {
+    private func parse(_ text: String) -> BulkEntryParser.Result {
         BulkEntryParser.parse(
             text,
             defaultDay: day,
@@ -49,11 +54,19 @@ struct BulkEntryView: View {
     var body: some View {
         let parsed = result
         let resolved = resolve(parsed)
+        let noteText = note
         let count = resolved.days.reduce(0) { $0 + $1.items.count }
         let matchesChecklist = resolved.days.contains { $0.items.contains { $0.habitID != nil } }
 
         NavigationStack {
             Form {
+                if let noteText {
+                    Section {
+                        Label(noteText, systemImage: "square.and.arrow.down")
+                            .font(.subheadline)
+                    }
+                }
+
                 Section {
                     ZStack(alignment: .topLeading) {
                         if text.isEmpty {
@@ -68,15 +81,31 @@ struct BulkEntryView: View {
                             .frame(minHeight: 200)
                             .scrollContentBackground(.hidden)
                     }
-                    Button {
-                        paste()
-                    } label: {
-                        Label("Paste from Clipboard", systemImage: "doc.on.clipboard")
+                    PasteButton(payloadType: String.self) { strings in
+                        guard let clip = strings.first, !clip.isEmpty else { return }
+                        Task { @MainActor in
+                            Haptics.tap()
+                            text = text.isEmpty ? clip : text + "\n" + clip
+                        }
                     }
+                    .labelStyle(.titleAndIcon)
+                    .buttonBorderShape(.capsule)
                 } header: {
                     Text("One thing per line")
                 } footer: {
                     Text("Type it like a note: \"2 eggs and toast\", \"5g creatine\", \"30 min walk\". Add a date line such as 10/06/26 to log several days at once. Pasting the same list again only adds new lines.")
+                }
+
+                if text.isEmpty && initialText.isEmpty {
+                    Section {
+                        NavigationLink {
+                            ImportView()
+                        } label: {
+                            Label("Import a file from another app", systemImage: "square.and.arrow.down")
+                        }
+                    } footer: {
+                        Text("Spreadsheet (CSV) exports from other trackers, text files, or a \(Brand.name) backup.")
+                    }
                 }
 
                 if !parsed.preamble.isEmpty {
@@ -155,6 +184,14 @@ struct BulkEntryView: View {
                 }
             }
             .onAppear(perform: prepare)
+            .task(id: text) {
+                // Re-read the list a moment after typing stops, so a month-long paste stays smooth.
+                if !result.days.isEmpty || !result.preamble.isEmpty {
+                    try? await Task.sleep(nanoseconds: 250_000_000)
+                    if Task.isCancelled { return }
+                }
+                result = parse(text)
+            }
         }
     }
 
@@ -190,6 +227,10 @@ struct BulkEntryView: View {
     private func prepare() {
         guard !prepared else { return }
         prepared = true
+        if !initialText.isEmpty {
+            text = initialText
+            return
+        }
         if Self.isDemo {
             text = Self.demoText
             return
@@ -197,12 +238,6 @@ struct BulkEntryView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
             editorFocused = true
         }
-    }
-
-    private func paste() {
-        guard let clip = UIPasteboard.general.string, !clip.isEmpty else { return }
-        Haptics.tap()
-        text = text.isEmpty ? clip : text + "\n" + clip
     }
 
     private func add(_ days: [BulkEntryParser.Day], preamble: [String]) {

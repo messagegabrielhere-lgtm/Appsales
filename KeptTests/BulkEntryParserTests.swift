@@ -221,4 +221,11 @@ final class BulkEntryParserTests: XCTestCase {
         XCTAssertLessThan(first, second)
         XCTAssertEqual(DayKey(second, calendar: calendar), day)
     }
+
+    func testTypeLabels() {
+        let result = parse("Activity: yard work\nSupplement: fish oil\nBreakfast: eggs\nMood: good\n8:15 coffee\nNote: dentist")
+        let items = result.days[0].items
+        XCTAssertEqual(items.map(\.text), ["yard work", "fish oil", "Breakfast: eggs", "Mood: good", "8:15 coffee", "dentist"])
+        XCTAssertEqual(items.map(\.kind), [.activity, .supplement, .food, .feeling, .drink, .note])
+    }
 }

@@ -136,6 +136,28 @@ final class HabitStore: ObservableObject {
         return added.count
     }
 
+    /// Combines a Fuelprint backup with what's here. Takes the backup's profile only when this
+    /// device has none. Returns what was added.
+    @discardableResult
+    func merge(_ backup: KeptBackup) -> BackupMerge.Result {
+        let result = BackupMerge.merge(habits: habits, log: log, backupHabits: backup.habits, backupLog: backup.log)
+        if result.addedHabits + result.addedTicks > 0 {
+            habits = result.habits
+            saveHabits()
+        }
+        if result.addedEntries > 0 {
+            log = result.log
+            saveLog()
+        }
+        if !settings.hasAboutMe && backup.settings.hasAboutMe {
+            var updated = settings
+            updated.profile = backup.settings.profile
+            updated.aboutMe = backup.settings.aboutMe
+            updateSettings(updated)
+        }
+        return result
+    }
+
     func entries(on day: DayKey) -> [LogEntry] {
         LogInsights.entries(on: day, in: log)
     }

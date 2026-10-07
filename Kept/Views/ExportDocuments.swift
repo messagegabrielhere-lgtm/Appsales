@@ -24,3 +24,15 @@ struct BackupDocument: Transferable {
         .suggestedFileName("\(Brand.name) Backup.json")
     }
 }
+
+/// A prompt as a `.txt` file, for periods too long to paste into a message box.
+struct PromptDocument: Transferable {
+    let text: String
+
+    static var transferRepresentation: some TransferRepresentation {
+        DataRepresentation(exportedContentType: .plainText) { document in
+            Data(document.text.utf8)
+        }
+        .suggestedFileName("\(Brand.name) AI Prompt.txt")
+    }
+}

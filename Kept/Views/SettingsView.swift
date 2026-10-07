@@ -67,6 +67,11 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    NavigationLink {
+                        ImportView()
+                    } label: {
+                        Label("Import from Notes or Other Apps", systemImage: "square.and.arrow.down")
+                    }
                     ShareLink(
                         item: CSVDocument(text: CSVExport.csv(log: store.log, habits: store.habits)),
                         preview: SharePreview("\(Brand.name) log", image: Image(systemName: "tablecells"))
@@ -82,7 +87,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Your data")
                 } footer: {
-                    Text("Every entry and checklist tick. Keep it anywhere you like.")
+                    Text("Bring in a history from Apple Notes, another tracker's CSV export, or a backup. Export every entry and checklist tick to keep anywhere you like.")
                 }
 
                 Section {

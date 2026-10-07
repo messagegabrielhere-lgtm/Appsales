@@ -14,7 +14,14 @@ struct AskAIView: View {
     @State private var showingDisclaimer = false
 
     private var days: [DayKey] {
-        range.days(endingAt: DayKey.today())
+        range.days(endingAt: DayKey.today(), firstDay: firstDay)
+    }
+
+    /// The earliest day with an entry or a checklist tick, where "All time" starts.
+    private var firstDay: DayKey? {
+        let firstEntry = store.log.min(by: { $0.date < $1.date })?.day()
+        let firstTick = store.habits.flatMap(\.completions).min()
+        return [firstEntry, firstTick].compactMap { $0 }.min()
     }
 
     private var exportText: String {
@@ -66,16 +73,17 @@ struct AskAIView: View {
             }
 
             Section {
-                Picker("Period", selection: $range) {
-                    ForEach(AIExportRange.allCases) { item in
-                        Text(item.title).tag(item)
-                    }
-                }
-                .pickerStyle(.segmented)
+                RangeChips(selection: $range)
+                    .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
             } header: {
                 StepHeader(number: 1, title: "Choose a period")
             } footer: {
-                Text(entryCount == 1 ? "1 entry in this period." : "\(entryCount) entries in this period.")
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("\(entryCount == 1 ? "1 entry" : "\(entryCount.formatted()) entries") · about \(text.count.formatted()) characters")
+                    if text.count > Self.longPrompt {
+                        Text("That's a long prompt. If your assistant says it's too long, use Share as File in the next step and attach it instead.")
+                    }
+                }
             }
 
             ForEach(AIPromptGroup.allCases) { group in
@@ -173,6 +181,9 @@ struct AskAIView: View {
         .onAppear(perform: openSendFromLaunchArguments)
     }
 
+    /// Above this, some assistants' message boxes struggle and a file attachment works better.
+    static let longPrompt = 60_000
+
     private var profileSummary: String {
         let summary = store.settings.profile.summary
         if !summary.isEmpty { return summary }
@@ -186,6 +197,34 @@ struct AskAIView: View {
         guard let index = args.firstIndex(of: "-screen"), index + 1 < args.count, args[index + 1] == "send" else { return }
         template = .nutrition
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { showingSend = true }
+    }
+}
+
+/// Every period, from today to all time, in one scrolling row.
+private struct RangeChips: View {
+    @Binding var selection: AIExportRange
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(AIExportRange.allCases) { item in
+                    let selected = item == selection
+                    Button {
+                        Haptics.tap()
+                        withAnimation(.snappy) { selection = item }
+                    } label: {
+                        Text(item.title)
+                            .font(.subheadline.weight(selected ? .semibold : .regular))
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                            .background(selected ? Color.accentColor : Color.accentColor.opacity(0.12), in: Capsule())
+                            .foregroundStyle(selected ? Color.white : Color.primary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(selected ? .isSelected : [])
+                }
+            }
+        }
     }
 }
 
@@ -292,8 +331,14 @@ struct SendToAISheet: View {
                     ShareLink(item: prompt) {
                         Label("Share to Another App", systemImage: "square.and.arrow.up")
                     }
+                    ShareLink(
+                        item: PromptDocument(text: prompt),
+                        preview: SharePreview("\(Brand.name) prompt", image: Image(systemName: "doc.text"))
+                    ) {
+                        Label("Share as File", systemImage: "doc.text")
+                    }
                 } footer: {
-                    Text("\(Brand.name) is not affiliated with these companies. Each service's own privacy policy applies to what you send it.")
+                    Text("For long periods, Share as File and attach it in your assistant's app. \(Brand.name) is not affiliated with these companies. Each service's own privacy policy applies to what you send it.")
                 }
             }
             .navigationTitle("Send to AI")

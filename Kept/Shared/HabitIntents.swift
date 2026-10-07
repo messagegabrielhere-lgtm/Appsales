@@ -171,3 +171,125 @@ struct AddWaterIntent: AppIntent {
         return .result(dialog: IntentDialog("Added \(glass) of water. That's \(today) today."))
     }
 }
+
+/// The Ask AI questions, as Shortcuts sees them. Titles are literals because App Intents reads
+/// them at build time.
+enum AIQuestionAppEnum: String, AppEnum {
+    case patterns
+    case review
+    case nutrition
+    case protein
+    case weight
+    case gut
+    case sleep
+    case hydration
+    case supplements
+    case heart
+    case activity
+    case mealPlan
+    case grocery
+    case doctor
+
+    static var typeDisplayRepresentation: TypeDisplayRepresentation = "Question"
+
+    static var caseDisplayRepresentations: [AIQuestionAppEnum: DisplayRepresentation] = [
+        .patterns: "Energy & mood patterns",
+        .review: "Weekly review",
+        .nutrition: "Nutrition estimate",
+        .protein: "Protein check",
+        .weight: "Weight goal check",
+        .gut: "Gut health",
+        .sleep: "Sleep & energy",
+        .hydration: "Hydration, caffeine & alcohol",
+        .supplements: "Supplement review",
+        .heart: "Heart-healthy habits",
+        .activity: "Activity & recovery",
+        .mealPlan: "Plan tomorrow's meals",
+        .grocery: "Grocery list",
+        .doctor: "Doctor visit summary",
+    ]
+
+    var template: AIPromptTemplate {
+        AIPromptTemplate(rawValue: rawValue) ?? .patterns
+    }
+}
+
+enum AIPeriodAppEnum: String, AppEnum {
+    case today
+    case yesterday
+    case week
+    case twoWeeks
+    case month
+    case quarter
+    case year
+    case all
+
+    static var typeDisplayRepresentation: TypeDisplayRepresentation = "Period"
+
+    static var caseDisplayRepresentations: [AIPeriodAppEnum: DisplayRepresentation] = [
+        .today: "Today",
+        .yesterday: "Yesterday",
+        .week: "Last 7 days",
+        .twoWeeks: "Last 14 days",
+        .month: "Last 30 days",
+        .quarter: "Last 90 days",
+        .year: "Last year",
+        .all: "All time",
+    ]
+
+    var range: AIExportRange {
+        AIExportRange(rawValue: rawValue) ?? .week
+    }
+}
+
+/// Builds the same prompt as Ask AI and hands it to Shortcuts, so it can flow straight into an
+/// AI action: Apple's Use Model (on device or Private Cloud Compute), the ChatGPT app's Ask
+/// ChatGPT, or any other. Fuelprint still sends nothing anywhere itself; the user's shortcut
+/// decides where the text goes.
+struct GetAIPromptIntent: AppIntent {
+    static var title: LocalizedStringResource = "Get AI Prompt"
+    static var description = IntentDescription("Builds a prompt from your log for an AI action, such as Use Model or Ask ChatGPT. AI answers are not medical advice.")
+    static var openAppWhenRun = false
+
+    @Parameter(title: "Question", default: .nutrition)
+    var question: AIQuestionAppEnum
+
+    @Parameter(title: "Period", default: .week)
+    var period: AIPeriodAppEnum
+
+    @Parameter(title: "Your Own Question", description: "Leave empty to use the question above.")
+    var ownQuestion: String?
+
+    @Parameter(title: "Include My Profile", default: true)
+    var includeProfile: Bool
+
+    static var parameterSummary: some ParameterSummary {
+        Summary("Get \(\.$question) prompt for \(\.$period)") {
+            \.$ownQuestion
+            \.$includeProfile
+        }
+    }
+
+    init() {}
+
+    func perform() async throws -> some IntentResult & ReturnsValue<String> {
+        let settings = SettingsFileStore.load()
+        let log = LogFileStore.load()
+        let habits = HabitFileStore.load()
+        let firstEntry = log.min(by: { $0.date < $1.date })?.day()
+        let firstTick = habits.flatMap(\.completions).min()
+        let firstDay = [firstEntry, firstTick].compactMap { $0 }.min()
+        let own = ownQuestion?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+        let prompt = AIExportBuilder.build(AIExportBuilder.Input(
+            template: own.isEmpty ? question.template : .custom,
+            customQuestion: own,
+            days: period.range.days(endingAt: DayKey.today(), firstDay: firstDay),
+            habits: habits,
+            log: log,
+            aboutMe: includeProfile ? settings.aboutMe : nil,
+            profile: includeProfile ? settings.profile : nil
+        ))
+        return .result(value: prompt)
+    }
+}

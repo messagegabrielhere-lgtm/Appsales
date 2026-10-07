@@ -237,4 +237,25 @@ final class AIExportTests: XCTestCase {
 
         XCTAssertFalse(AIAssistant.gemini.destination(for: "Hi").prefilled)
     }
+
+    func testLongerPeriods() {
+        let today = TestCalendar.day(2026, 9, 21)
+        XCTAssertEqual(AIExportRange.quarter.days(endingAt: today, calendar: calendar).count, 90)
+        XCTAssertEqual(AIExportRange.year.days(endingAt: today, calendar: calendar).count, 365)
+        let all = AIExportRange.all.days(endingAt: today, firstDay: TestCalendar.day(2026, 9, 1), calendar: calendar)
+        XCTAssertEqual(all.first, TestCalendar.day(2026, 9, 1))
+        XCTAssertEqual(all.count, 21)
+        XCTAssertEqual(AIExportRange.all.days(endingAt: today, calendar: calendar), [today])
+    }
+
+    func testLongPeriodsLeaveOutEmptyDays() {
+        var input = sampleInput()
+        input.days = AIExportRange.quarter.days(endingAt: TestCalendar.day(2026, 9, 21), calendar: calendar)
+        let text = AIExportBuilder.build(input)
+        XCTAssertTrue(text.contains("Days with nothing logged are left out."))
+        XCTAssertFalse(text.contains("Nothing logged."))
+        XCTAssertTrue(text.contains("## Saturday 19 September 2026"))
+        XCTAssertTrue(text.contains("## Monday 21 September 2026"))
+        XCTAssertFalse(text.contains("## Sunday 20 September 2026"))
+    }
 }

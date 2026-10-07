@@ -115,16 +115,41 @@ enum BulkEntryParser {
     }
 
     static func item(for line: String, id: String, habits: [Habit], glassMilliliters: Int) -> Item {
-        var item = Item(id: id, text: line, kind: .food)
-        let lower = line.lowercased()
+        let (text, forced) = explicitKind(line)
+        var item = Item(id: id, text: text, kind: .food)
+        let lower = text.lowercased()
         if let habit = habits.first(where: { habit in
             let name = habit.name.trimmingCharacters(in: .whitespaces).lowercased()
             return name.count >= 3 && lower.contains(name)
         }) {
             item.habitID = habit.id
         }
-        return with(item, kind: classify(line), glassMilliliters: glassMilliliters)
+        return with(item, kind: forced ?? classify(text), glassMilliliters: glassMilliliters)
     }
+
+    /// "Activity: yard work" and "Supplement: fish oil" set the type and drop the label.
+    /// "Breakfast: eggs" and "Mood: good" set the type and keep the label, which the AI uses.
+    static func explicitKind(_ line: String) -> (text: String, kind: LogKind?) {
+        guard let colon = line.firstIndex(of: ":") else { return (line, nil) }
+        let label = line[..<colon].trimmingCharacters(in: .whitespaces).lowercased()
+        let rest = line[line.index(after: colon)...].trimmingCharacters(in: .whitespaces)
+        guard !rest.isEmpty, !label.isEmpty, label.allSatisfy({ $0.isLetter }) else { return (line, nil) }
+        if let kind = typeLabels[label] { return (rest, kind) }
+        if let kind = keptLabels[label] { return (line, kind) }
+        return (line, nil)
+    }
+
+    private static let typeLabels: [String: LogKind] = [
+        "food": .food, "drink": .drink, "drinks": .drink, "supplement": .supplement,
+        "supplements": .supplement, "vitamin": .supplement, "vitamins": .supplement,
+        "medication": .supplement, "meds": .supplement, "activity": .activity, "exercise": .activity,
+        "workout": .activity, "feeling": .feeling, "symptom": .feeling, "note": .note, "other": .note,
+    ]
+    private static let keptLabels: [String: LogKind] = [
+        "breakfast": .food, "lunch": .food, "dinner": .food, "snack": .food, "snacks": .food,
+        "supper": .food, "brunch": .food, "dessert": .food, "mood": .feeling, "energy": .feeling,
+        "sleep": .feeling,
+    ]
 
     /// The item as another kind, with the amount that kind records: volume for drinks,
     /// duration for activity. Used when the user corrects a guess.
@@ -146,11 +171,15 @@ enum BulkEntryParser {
     ) -> (days: [Day], skipped: Int) {
         var skipped = 0
         var kept: [Day] = []
+        let wanted = Set(days.map(\.day))
+        var existing: [DayKey: [String: Int]] = [:]
+        for entry in log {
+            let day = entry.day(calendar: calendar)
+            guard wanted.contains(day) else { continue }
+            existing[day, default: [:]][normalized(entry.text), default: 0] += 1
+        }
         for parsed in days {
-            var counts: [String: Int] = [:]
-            for entry in log where entry.day(calendar: calendar) == parsed.day {
-                counts[normalized(entry.text), default: 0] += 1
-            }
+            var counts = existing[parsed.day] ?? [:]
             var items: [Item] = []
             for item in parsed.items {
                 let key = normalized(item.text)

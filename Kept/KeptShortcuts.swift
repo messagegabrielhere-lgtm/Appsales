@@ -31,5 +31,14 @@ struct KeptShortcuts: AppShortcutsProvider {
             shortTitle: "Check off",
             systemImageName: "checkmark.circle"
         )
+        AppShortcut(
+            intent: GetAIPromptIntent(),
+            phrases: [
+                "Get my \(.applicationName) AI prompt",
+                "Get my \(\.$question) prompt from \(.applicationName)",
+            ],
+            shortTitle: "AI prompt",
+            systemImageName: "sparkles"
+        )
     }
 }

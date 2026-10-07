@@ -1,12 +1,16 @@
 import Foundation
 
-/// The span of days an export covers.
+/// The span of days an export covers. Today's AI assistants read hundreds of pages at once,
+/// so the longer spans are genuinely useful: a year of meals is what shows a trend.
 enum AIExportRange: String, CaseIterable, Identifiable {
     case today
     case yesterday
     case week
     case twoWeeks
     case month
+    case quarter
+    case year
+    case all
 
     var id: String { rawValue }
 
@@ -17,22 +21,34 @@ enum AIExportRange: String, CaseIterable, Identifiable {
         case .week: return "7 days"
         case .twoWeeks: return "14 days"
         case .month: return "30 days"
+        case .quarter: return "90 days"
+        case .year: return "1 year"
+        case .all: return "All time"
         }
     }
 
-    /// Oldest first.
-    func days(endingAt today: DayKey, calendar: Calendar = .current) -> [DayKey] {
+    /// Oldest first. `firstDay` is the earliest day with data, used by `.all`.
+    func days(endingAt today: DayKey, firstDay: DayKey? = nil, calendar: Calendar = .current) -> [DayKey] {
+        func last(_ count: Int) -> [DayKey] {
+            (0..<count).reversed().map { today.adding(days: -$0, calendar: calendar) }
+        }
         switch self {
-        case .today:
-            return [today]
-        case .yesterday:
-            return [today.adding(days: -1, calendar: calendar)]
-        case .week:
-            return (0..<7).reversed().map { today.adding(days: -$0, calendar: calendar) }
-        case .twoWeeks:
-            return (0..<14).reversed().map { today.adding(days: -$0, calendar: calendar) }
-        case .month:
-            return (0..<30).reversed().map { today.adding(days: -$0, calendar: calendar) }
+        case .today: return [today]
+        case .yesterday: return [today.adding(days: -1, calendar: calendar)]
+        case .week: return last(7)
+        case .twoWeeks: return last(14)
+        case .month: return last(30)
+        case .quarter: return last(90)
+        case .year: return last(365)
+        case .all:
+            guard let firstDay, firstDay < today else { return [today] }
+            var days: [DayKey] = []
+            var day = firstDay
+            while day <= today {
+                days.append(day)
+                day = day.adding(days: 1, calendar: calendar)
+            }
+            return days
         }
     }
 }
@@ -409,8 +425,16 @@ enum AIExportBuilder {
         }
 
         let byDay = Dictionary(grouping: input.log) { $0.day(calendar: calendar) }
+        // Over a month, empty days are noise that costs the AI attention, so they're left out.
+        let skipEmptyDays = days.count > AIExportBuilder.longRangeDays
+        if skipEmptyDays {
+            lines.append("Days with nothing logged are left out.")
+        }
 
         for day in days {
+            if skipEmptyDays && (byDay[day] ?? []).isEmpty && !input.habits.contains(where: { $0.isCompleted(on: day) }) {
+                continue
+            }
             lines.append("")
             lines.append("## " + longDate(day, calendar: calendar))
 
@@ -442,6 +466,9 @@ enum AIExportBuilder {
         lines.append("(Exported from \(Brand.name).)")
         return lines.joined(separator: "\n")
     }
+
+    /// Periods longer than this leave out days with nothing logged.
+    static let longRangeDays = 31
 
     /// Added to every prompt, whatever the template.
     static let closingNote = "You are an AI assistant, not my doctor, and this is not medical advice. If anything in my log or About Me could need medical attention, tell me plainly to check with a professional."
