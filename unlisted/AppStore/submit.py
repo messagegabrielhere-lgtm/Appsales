@@ -435,9 +435,15 @@ def submit(app_id, vid):
         sub_id = r["data"]["id"]
     s, r = api("POST", "/v1/reviewSubmissionItems", {"data": {"type": "reviewSubmissionItems", "relationships": {
         "reviewSubmission": ref("reviewSubmissions", sub_id), "appStoreVersion": ref("appStoreVersions", vid)}}})
-    if not ok(s) and s != 409:
-        error("Submit", f"Couldn't add the version to the submission: {why(r)}")
-        return
+    if not ok(s):
+        s2, r2 = api("GET", f"/v1/reviewSubmissions/{sub_id}/items")
+        if not (r2.get("data") or []):
+            text = why(r)
+            if "privacy" in text.lower():
+                text += (" -> In App Store Connect open the app > App Privacy > Get Started, choose "
+                         "'No, we do not collect data from this app', save, press Publish, then re-run.")
+            error("Submit", f"Apple wouldn't add version to the submission: {text}")
+            return
     s, r = api("PATCH", f"/v1/reviewSubmissions/{sub_id}", {"data": {"type": "reviewSubmissions", "id": sub_id,
                "attributes": {"submitted": True}}})
     if ok(s):
