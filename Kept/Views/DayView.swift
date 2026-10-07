@@ -46,13 +46,37 @@ struct DayView: View {
     @State private var addingHabit = false
     @State private var addingList = false
     @State private var speaking = false
-    @State private var spokenList: SpokenList?
+    @State private var scanning = false
+    @State private var listSeed: ListSeed?
+    /// Text handed over by the voice or scan sheet, shown in the list editor once that sheet
+    /// has closed.
+    @State private var pendingSeed: ListSeed?
 
-    struct SpokenList: Identifiable {
+    struct ListSeed: Identifiable {
         let id = UUID()
         let text: String
+        let note: String
+        var day: DayKey? = nil
     }
-    @State private var pendingSpoken: String?
+
+    /// The day to repeat: yesterday on Today, or this day when looking back.
+    private var repeatSource: DayKey {
+        day == DayKey.today() ? day.adding(days: -1) : day
+    }
+
+    /// Food, drinks and supplements from `repeatSource`, as a list with their types.
+    private var repeatText: String {
+        store.entries(on: repeatSource)
+            .filter { [.food, .drink, .supplement].contains($0.kind) }
+            .map { entry in
+                var details: [String] = []
+                if let amount = entry.amount, !amount.isEmpty { details.append(amount) }
+                if let ml = entry.milliliters { details.append("\(ml) ml") }
+                let suffix = details.isEmpty || entry.text.contains("(") ? "" : " (" + details.joined(separator: ", ") + ")"
+                return "\(entry.kind.title): \(entry.text)\(suffix)"
+            }
+            .joined(separator: "\n")
+    }
 
     private var entries: [LogEntry] { store.entries(on: day) }
     private var scheduled: [Habit] { store.habits.filter { $0.isScheduled(on: day) } }
@@ -67,41 +91,27 @@ struct DayView: View {
                 .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
                 .listRowBackground(Color.clear)
 
-                Button {
+                LogMethodsRow(
+                    repeatTitle: day == DayKey.today() ? "Repeat yesterday" : "Repeat today",
+                    canRepeat: !repeatText.isEmpty
+                ) { method in
                     Haptics.tap()
-                    addingList = true
-                } label: {
-                    Label {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Type or paste a list")
-                                .foregroundStyle(.primary)
-                            Text("A whole day, or many days, one line each")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    } icon: {
-                        Image(systemName: "list.bullet.clipboard")
-                            .foregroundStyle(Color.accentColor)
+                    switch method {
+                    case .list: addingList = true
+                    case .speak: speaking = true
+                    case .scan: scanning = true
+                    case .repeatDay:
+                        listSeed = ListSeed(
+                            text: repeatText,
+                            note: day == DayKey.today()
+                                ? "Yesterday's food, drinks and supplements. Remove what you didn't have, then tap Add."
+                                : "This day's food, drinks and supplements, logged again for today.",
+                            day: DayKey.today()
+                        )
                     }
                 }
-
-                Button {
-                    Haptics.tap()
-                    speaking = true
-                } label: {
-                    Label {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Speak your day")
-                                .foregroundStyle(.primary)
-                            Text("Say what you ate, drank, took and did")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    } icon: {
-                        Image(systemName: "mic.fill")
-                            .foregroundStyle(Color.accentColor)
-                    }
-                }
+                .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+                .listRowBackground(Color.clear)
 
                 WaterRow(
                     milliliters: store.waterMilliliters(on: day),
@@ -171,18 +181,18 @@ struct DayView: View {
             LogEntryEditor(request: request)
                 .environmentObject(store)
         }
-        .sheet(isPresented: $speaking, onDismiss: {
-            if let text = pendingSpoken, !text.isEmpty {
-                spokenList = SpokenList(text: text)
-            }
-            pendingSpoken = nil
-        }) {
+        .sheet(isPresented: $speaking, onDismiss: presentPendingSeed) {
             VoiceEntryView { text in
-                pendingSpoken = text
+                pendingSeed = ListSeed(text: text, note: "From what you said. Check each line, then tap Add.")
             }
         }
-        .sheet(item: $spokenList, onDismiss: askForReviewIfDue) { list in
-            BulkEntryView(day: day, initialText: list.text, note: "From what you said. Check each line, then tap Add.")
+        .sheet(isPresented: $scanning, onDismiss: presentPendingSeed) {
+            LabelScanView { line in
+                pendingSeed = ListSeed(text: line, note: "From the label. Edit the name or amounts if needed, then tap Add.")
+            }
+        }
+        .sheet(item: $listSeed, onDismiss: askForReviewIfDue) { seed in
+            BulkEntryView(day: seed.day ?? day, initialText: seed.text, note: seed.note)
                 .environmentObject(store)
         }
         .sheet(isPresented: $addingList, onDismiss: askForReviewIfDue) {
@@ -207,6 +217,13 @@ struct DayView: View {
         guard let kind else { return }
         editorRequest = .create(kind, DayKey.today())
         pendingKind = nil
+    }
+
+    private func presentPendingSeed() {
+        if let seed = pendingSeed, !seed.text.isEmpty {
+            listSeed = seed
+        }
+        pendingSeed = nil
     }
 
     /// `-screen paste` (used by scripts/screenshots.sh) opens the list editor on Today.
@@ -264,6 +281,50 @@ struct DayView: View {
             Haptics.checkIn(newStreak: StreakCalculator.currentStreak(
                 updated.completions, today: day, schedule: updated.schedule))
         }
+    }
+}
+
+enum LogMethod {
+    case list, speak, scan, repeatDay
+}
+
+/// The other ways to log: a typed or pasted list, speech, a label photo, or repeating a day.
+private struct LogMethodsRow: View {
+    let repeatTitle: String
+    let canRepeat: Bool
+    let onSelect: (LogMethod) -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            tile("Type a list", "list.bullet.clipboard", .list)
+            tile("Speak", "mic.fill", .speak)
+            tile("Scan label", "text.viewfinder", .scan)
+            tile(repeatTitle, "arrow.clockwise", .repeatDay)
+                .disabled(!canRepeat)
+                .opacity(canRepeat ? 1 : 0.4)
+        }
+    }
+
+    private func tile(_ title: String, _ symbol: String, _ method: LogMethod) -> some View {
+        Button {
+            onSelect(method)
+        } label: {
+            VStack(spacing: 5) {
+                Image(systemName: symbol)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(Color.accentColor)
+                Text(title)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.primary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
+            }
+            .frame(maxWidth: .infinity, minHeight: 58)
+            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
     }
 }
 
