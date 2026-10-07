@@ -12,6 +12,8 @@ struct AskAIView: View {
     @State private var showingPreview = false
     @State private var showingSend = false
     @State private var showingDisclaimer = false
+    @StateObject private var healthReader = HealthReader()
+    @State private var healthDays: [DayKey: HealthDay] = [:]
 
     private var days: [DayKey] {
         range.days(endingAt: DayKey.today(), firstDay: firstDay)
@@ -40,6 +42,20 @@ struct AskAIView: View {
     private var entryCount: Int {
         let included = Set(days)
         return store.log.filter { included.contains($0.day()) }.count
+    }
+
+    private var includeHealth: Binding<Bool> {
+        Binding(
+            get: { store.settings.includeHealth },
+            set: { newValue in
+                Task {
+                    let allowed = newValue ? await healthReader.requestAccess() : false
+                    var settings = store.settings
+                    settings.includeHealth = newValue && allowed
+                    store.updateSettings(settings)
+                }
+            }
+        )
     }
 
     private var includeProfile: Binding<Bool> {
@@ -126,6 +142,16 @@ struct AskAIView: View {
                     }
                 }
                 Toggle("Include my profile", isOn: includeProfile)
+                if HealthReader.isAvailable {
+                    Toggle(isOn: includeHealth) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Include Apple Health")
+                            Text("Steps, workouts, sleep, weight, resting heart rate")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
             } header: {
                 StepHeader(number: 3, title: "Add your details")
             } footer: {
@@ -179,6 +205,13 @@ struct AskAIView: View {
             }
         }
         .onAppear(perform: openSendFromLaunchArguments)
+        .task(id: "\(range.rawValue)-\(store.settings.includeHealth)") {
+            guard store.settings.includeHealth else {
+                healthDays = [:]
+                return
+            }
+            healthDays = await healthReader.days(days)
+        }
     }
 
     /// Above this, some assistants' message boxes struggle and a file attachment works better.

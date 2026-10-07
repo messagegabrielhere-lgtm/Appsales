@@ -39,6 +39,7 @@ targets:
         LSRequiresIPhoneOS: true
         ITSAppUsesNonExemptEncryption: false
         NSMicrophoneUsageDescription: Fuelprint listens when you tap the microphone so you can log your day by voice. Audio stays on this iPhone.
+        NSHealthShareUsageDescription: Fuelprint reads steps, workouts, sleep, weight and resting heart rate only when you include Apple Health in an AI prompt. It never writes to Health or sends this data anywhere itself.
         NSSpeechRecognitionUsageDescription: Fuelprint turns what you say into log entries on this iPhone. Nothing is sent anywhere.
         UILaunchScreen: {}
         CFBundleURLTypes:
@@ -55,6 +56,8 @@ targets:
     entitlements:
       path: Kept/Kept.entitlements
       properties:
+        com.apple.developer.healthkit: true
+        com.apple.developer.healthkit.access: []
         com.apple.security.application-groups:
           - group.com.messagegabrielhere.kept
     dependencies:

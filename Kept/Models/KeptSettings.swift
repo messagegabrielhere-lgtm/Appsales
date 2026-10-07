@@ -94,6 +94,8 @@ struct KeptSettings: Codable, Equatable {
     /// The user has read that AI answers are not medical advice. Asked once, before the first
     /// prompt leaves the app.
     var acceptedAIDisclaimer: Bool = false
+    /// Include Apple Health (steps, workouts, sleep, weight, resting heart rate) in prompts.
+    var includeHealth: Bool = false
 
     init() {}
 
@@ -102,7 +104,7 @@ struct KeptSettings: Codable, Equatable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case profile, aboutMe, includeAboutMe, glassMilliliters, hasOnboarded, acceptedAIDisclaimer
+        case profile, aboutMe, includeAboutMe, glassMilliliters, hasOnboarded, acceptedAIDisclaimer, includeHealth
     }
 
     init(from decoder: Decoder) throws {
@@ -114,5 +116,6 @@ struct KeptSettings: Codable, Equatable {
         glassMilliliters = min(2000, max(50, glass))
         hasOnboarded = try container.decodeIfPresent(Bool.self, forKey: .hasOnboarded) ?? false
         acceptedAIDisclaimer = try container.decodeIfPresent(Bool.self, forKey: .acceptedAIDisclaimer) ?? false
+        includeHealth = try container.decodeIfPresent(Bool.self, forKey: .includeHealth) ?? false
     }
 }

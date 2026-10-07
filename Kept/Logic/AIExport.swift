@@ -376,6 +376,9 @@ enum AIExportBuilder {
         var aboutMe: String?
         /// Age, height, weight, history and so on. Nil to leave out.
         var profile: UserProfile? = nil
+        /// Apple Health by day, when the user includes it.
+        var health: [DayKey: HealthDay] = [:]
+        var usesPounds = false
         var calendar: Calendar = .current
     }
 
@@ -415,6 +418,9 @@ enum AIExportBuilder {
             lines.append("Entries marked --:-- have no time; they are in the order I wrote them.")
         }
         lines.append("Feeling ratings run from 1 (awful) to 5 (great).")
+        if !input.health.isEmpty {
+            lines.append("Apple Health lines come from the iPhone and any watch. Sleep is the night before that day.")
+        }
 
         if !input.habits.isEmpty {
             lines.append("")
@@ -432,7 +438,8 @@ enum AIExportBuilder {
         }
 
         for day in days {
-            if skipEmptyDays && (byDay[day] ?? []).isEmpty && !input.habits.contains(where: { $0.isCompleted(on: day) }) {
+            if skipEmptyDays && (byDay[day] ?? []).isEmpty && !input.habits.contains(where: { $0.isCompleted(on: day) })
+                && (input.health[day]?.isEmpty ?? true) {
                 continue
             }
             lines.append("")
@@ -448,12 +455,16 @@ enum AIExportBuilder {
                 lines.append("Checklist: " + parts.joined(separator: "; "))
             }
 
+            if let health = input.health[day]?.line(usesPounds: input.usesPounds) {
+                lines.append(health)
+            }
+
             let entries = (byDay[day] ?? []).sorted { $0.date < $1.date }
             let water = LogInsights.waterMilliliters(of: entries)
             if water > 0 {
                 lines.append("Water total: \(water) ml")
             }
-            if entries.isEmpty {
+            if entries.isEmpty && (input.health[day]?.isEmpty ?? true) {
                 lines.append("Nothing logged.")
             }
             for entry in entries {
