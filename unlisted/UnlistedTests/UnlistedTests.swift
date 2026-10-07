@@ -96,7 +96,37 @@ final class LetterTests: XCTestCase {
     func testArchiveLetterDefaultsToArchiveAddress() {
         let letter = LetterRenderer.render(.archiveRemoval, LetterContext(sender: sender(), urls: ["example.com"]))
         XCTAssertEqual(letter.to, "info@archive.org")
-        XCTAssertTrue(letter.body.contains("- example.com"))
+        XCTAssertTrue(letter.body.contains("- https://example.com"))
+    }
+}
+
+final class ArchiveExclusionTests: XCTestCase {
+    func testUnwrapsEmailRedirectLinksAndWaybackCaptures() {
+        let pasted = [
+            "https://www.google.com/url?q=http://example.com&source=gmail&ust=1790479781250000&sa=E",
+            "https://www.google.com/url?q=http://www.example.com&source=gmail&sa=E",
+            "https://www.google.com/url?q=http://web.archive.org/web/20241218191145/https://www.example.com/about&source=gmail",
+            "https://nam02.safelinks.protection.outlook.com/?url=https%3A%2F%2Fmyblog.wordpress.com%2F&data=x",
+            "web.archive.org/web/20250307023543/https://Other-Site.org/",
+            "not a url",
+            "https://web.archive.org/web/*/example.com",
+        ]
+        let requests = ArchiveExclusion.requests(from: pasted)
+        XCTAssertEqual(requests.map(\.url), ["https://example.com", "https://myblog.wordpress.com", "https://other-site.org"])
+        XCTAssertEqual(requests[0].type, .ownDomain)
+        XCTAssertEqual(requests[0].alsoCovers, ["https://www.example.com", "https://www.example.com/about"])
+        XCTAssertEqual(requests[1].type, .notMyDomain, "a WordPress.com site is on a domain the user doesn't control")
+        XCTAssertFalse(requests.contains { $0.url.contains("google.com") || $0.url.contains("archive.org") })
+    }
+
+    func testAnswersMatchTheFormWording() {
+        let request = ArchiveExclusion.requests(from: ["example.com"])[0]
+        let answers = request.answers(email: "me@example.net")
+        XCTAssertTrue(answers.contains("Contact Email: me@example.net"))
+        XCTAssertTrue(answers.contains("Website / Domain / Subdomain (not an account)"))
+        XCTAssertTrue(answers.contains("URL to exclude: https://example.com"))
+        XCTAssertEqual(request.capturesURL?.absoluteString, "https://web.archive.org/web/*/example.com/*")
+        XCTAssertEqual(BrokerCatalog.all.first { $0.id == "wayback" }?.optOutURL, ArchiveExclusion.formURL)
     }
 }
 

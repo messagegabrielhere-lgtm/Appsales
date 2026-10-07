@@ -83,6 +83,13 @@ struct BrokerDetailView: View {
             List {
                 Section("How to opt out") {
                     Text(broker.instructions)
+                    if broker.category == .archive {
+                        NavigationLink {
+                            ArchiveRemovalView(personID: person.id)
+                        } label: {
+                            Label("Fill out the exclusion form", systemImage: "list.bullet.clipboard")
+                        }
+                    }
                     if let url = broker.optOutURL {
                         Link(destination: url) { Label("Open the opt-out page", systemImage: "safari") }
                     }

@@ -129,8 +129,8 @@ enum BrokerCatalog {
 
     static let archives: [Broker] = [
         Broker(id: "wayback", name: "Internet Archive (Wayback Machine)", category: .archive,
-               optOutURL: nil, email: "info@archive.org",
-               instructions: "Email a removal request for sites you own. Use the Wayback Machine letter in the Letters tab.",
+               optOutURL: ArchiveExclusion.formURL, email: "info@archive.org",
+               instructions: "Submit the Wayback Machine exclusion form once for each site or account you own. The app fills in the answers for you.",
                recheckDays: 180, domains: ["archive.org"]),
     ]
 }

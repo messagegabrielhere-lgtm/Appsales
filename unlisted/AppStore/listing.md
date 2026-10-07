@@ -41,7 +41,7 @@ Ready-to-send letters, filled in for you:
 • Website and news removal requests
 • "Do not share" requests for banks and insurers
 • Child credit freeze letters for all three bureaus
-• Wayback Machine removal
+• Wayback Machine removal, with the Internet Archive exclusion form filled in for each site
 • License plate camera data requests
 You review every word and send it from your own Mail app.
 

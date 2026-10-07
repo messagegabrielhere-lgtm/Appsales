@@ -290,14 +290,21 @@ enum LetterRenderer {
     }
 
     static func archive(_ c: LetterContext) -> Letter {
+        let sites = ArchiveExclusion.requests(from: c.urls)
+        let list = sites.isEmpty ? "- [yourdomain.com]" : sites.map { site in
+            ([site.url] + site.alsoCovers).map { "- \($0)" }.joined(separator: "\n")
+        }.joined(separator: "\n")
         let body = """
         Hello Internet Archive team,
 
         I own the website(s) below and have taken them offline. I'm requesting that all archived copies be removed from the Wayback Machine and excluded from future crawling:
 
-        \(bullets(c.urls, "yourdomain.com"))
+        \(list)
 
-        The archived pages contain personal information I no longer want public. I'm glad to verify ownership with a DNS TXT record or a file on the domain if you send me the value to use.
+        Time period to exclude: all captures, every date.
+        Time period I controlled the site(s): [when you owned it, e.g. 2023 to today]
+
+        The archived pages contain personal information I no longer want public. I'm submitting your Wayback Machine exclusion form for each site as well, and I'm glad to verify ownership with a DNS TXT record, a file on the domain, or through the account that hosted the site.
 
         Please confirm once the captures are removed. You can reach me at \(replyEmail(c.sender)).
 

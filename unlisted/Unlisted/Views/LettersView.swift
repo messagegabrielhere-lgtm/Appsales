@@ -80,6 +80,18 @@ struct LetterComposerView: View {
 
     var body: some View {
         Form {
+            if kind == .archiveRemoval {
+                Section {
+                    NavigationLink {
+                        ArchiveRemovalView(personID: senderID, sites: .fromList(urls))
+                    } label: {
+                        Label("Fill out the exclusion form instead", systemImage: "list.bullet.clipboard")
+                    }
+                } footer: {
+                    Text("The Internet Archive asks site owners to use its exclusion form. An email alone usually gets a reply pointing you to it.")
+                }
+            }
+
             Section {
                 PersonPicker(people: store.adults, selection: $senderID)
             } header: {
