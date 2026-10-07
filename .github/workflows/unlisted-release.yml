@@ -1,8 +1,9 @@
 name: Unlisted release
 
 # Signs the Unlisted app and uploads it to App Store Connect (TestFlight).
-# Run it by pushing a tag like `unlisted-v1.0.0`. The version comes from the tag
-# and the build number from the run number.
+# Run it by pushing a tag like `unlisted-v1.0.0`, or by changing
+# unlisted/RELEASE_VERSION on the unlisted branch. The version comes from the
+# tag or that file, and the build number from the run number.
 #
 # Uses the same three repository secrets as Kept's release workflow
 # (Settings > Secrets and variables > Actions), so one API key serves both apps:
@@ -17,6 +18,11 @@ on:
   push:
     tags:
       - 'unlisted-v*'
+    # Or: change unlisted/RELEASE_VERSION on the unlisted branch.
+    branches:
+      - unlisted
+    paths:
+      - 'unlisted/RELEASE_VERSION'
 
 permissions:
   contents: read
@@ -70,7 +76,8 @@ jobs:
           ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
         run: |
-          VERSION="${GITHUB_REF_NAME#unlisted-v}"
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then VERSION="${GITHUB_REF_NAME#unlisted-v}"; else VERSION="$(tr -d '[:space:]' < RELEASE_VERSION)"; fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           if ! xcodebuild archive \
               -project Unlisted.xcodeproj -scheme Unlisted -configuration Release \
               -destination 'generic/platform=iOS' \
@@ -108,7 +115,7 @@ jobs:
             tail -n 60 export.log
             exit 1
           fi
-          echo "::notice title=Uploaded::Build $GITHUB_RUN_NUMBER of version ${GITHUB_REF_NAME#unlisted-v} uploaded. It appears in TestFlight after Apple finishes processing (about 10-30 minutes)."
+          echo "::notice title=Uploaded::Build $GITHUB_RUN_NUMBER of version $VERSION uploaded. It appears in TestFlight after Apple finishes processing (about 10-30 minutes)."
 
       - name: Remove API key
         if: always()
