@@ -316,36 +316,53 @@ def upload_screenshots(lid, folder, files):
     have = [x["attributes"].get("sourceFileChecksum") for x in existing]
     states = [((x["attributes"].get("assetDeliveryState") or {}).get("state")) for x in existing]
     if have == checksums and "FAILED" not in states:
-        notice("Screenshots", "Already uploaded and unchanged.")
-        wait_for_screenshots([x["id"] for x in existing])
+        if all(st == "COMPLETE" for st in states):
+            notice("Screenshots", "Already uploaded and unchanged.")
+            return
+        # Some are stuck in Apple's processing queue: upload just those again,
+        # then put the set back in order.
+        ids = [x["id"] for x in existing]
+        stuck = [i for i, st in enumerate(states) if st != "COMPLETE"]
+        for i in stuck:
+            api("DELETE", f"/v1/appScreenshots/{ids[i]}")
+            ids[i] = upload_one(set_id, folder, files[i])
+        ids = [i for i in ids if i]
+        s, r = api("PATCH", f"/v1/appScreenshotSets/{set_id}/relationships/appScreenshots",
+                   {"data": [{"type": "appScreenshots", "id": i} for i in ids]})
+        if not ok(s):
+            error("Screenshots", f"Couldn't reorder the screenshots: {why(r)}")
+        if wait_for_screenshots(ids):
+            notice("Screenshots", f"Re-uploaded {len(stuck)} screenshot(s) that were stuck processing.")
         return
     for old in existing:
         api("DELETE", f"/v1/appScreenshots/{old['id']}")
 
-    uploaded = []
-    for name in files:
-        blob = open(os.path.join(folder, name), "rb").read()
-        s, r = api("POST", "/v1/appScreenshots", {"data": {"type": "appScreenshots",
-                   "attributes": {"fileName": name, "fileSize": len(blob)},
-                   "relationships": {"appScreenshotSet": ref("appScreenshotSets", set_id)}}})
-        if not ok(s):
-            error("Screenshots", f"{name}: {why(r)}")
-            continue
-        shot = r["data"]
-        for op in shot["attributes"].get("uploadOperations") or []:
-            part = blob[op["offset"]:op["offset"] + op["length"]]
-            req = urllib.request.Request(op["url"], data=part, method=op["method"],
-                                         headers={h["name"]: h["value"] for h in op.get("requestHeaders") or []})
-            urllib.request.urlopen(req, timeout=120).read()
-        s, r = api("PATCH", f"/v1/appScreenshots/{shot['id']}", {"data": {"type": "appScreenshots", "id": shot["id"],
-                   "attributes": {"uploaded": True, "sourceFileChecksum": hashlib.md5(blob).hexdigest()}}})
-        if ok(s):
-            uploaded.append(shot["id"])
-        else:
-            error("Screenshots", f"{name}: {why(r)}")
-
+    uploaded = [i for i in (upload_one(set_id, folder, name) for name in files) if i]
     if uploaded and wait_for_screenshots(uploaded):
         notice("Screenshots", f"Uploaded {len(uploaded)} iPhone screenshots.")
+
+
+def upload_one(set_id, folder, name):
+    """Uploads one screenshot into the set; returns its id, or None after reporting an error."""
+    blob = open(os.path.join(folder, name), "rb").read()
+    s, r = api("POST", "/v1/appScreenshots", {"data": {"type": "appScreenshots",
+               "attributes": {"fileName": name, "fileSize": len(blob)},
+               "relationships": {"appScreenshotSet": ref("appScreenshotSets", set_id)}}})
+    if not ok(s):
+        error("Screenshots", f"{name}: {why(r)}")
+        return None
+    shot = r["data"]
+    for op in shot["attributes"].get("uploadOperations") or []:
+        part = blob[op["offset"]:op["offset"] + op["length"]]
+        req = urllib.request.Request(op["url"], data=part, method=op["method"],
+                                     headers={h["name"]: h["value"] for h in op.get("requestHeaders") or []})
+        urllib.request.urlopen(req, timeout=120).read()
+    s, r = api("PATCH", f"/v1/appScreenshots/{shot['id']}", {"data": {"type": "appScreenshots", "id": shot["id"],
+               "attributes": {"uploaded": True, "sourceFileChecksum": hashlib.md5(blob).hexdigest()}}})
+    if not ok(s):
+        error("Screenshots", f"{name}: {why(r)}")
+        return None
+    return shot["id"]
 
 
 def wait_for_screenshots(ids):
