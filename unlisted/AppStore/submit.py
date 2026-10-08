@@ -319,6 +319,13 @@ def upload_screenshots(lid, folder, files):
         if all(st == "COMPLETE" for st in states):
             notice("Screenshots", "Already uploaded and unchanged.")
             return
+        # Apple's processing can take a while; give it time before re-uploading.
+        if wait_for_screenshots([x["id"] for x in existing], minutes=30, quiet=True):
+            notice("Screenshots", "Already uploaded; Apple finished processing them.")
+            return
+        s, r = api("GET", f"/v1/appScreenshotSets/{set_id}/appScreenshots")
+        existing = r.get("data") or []
+        states = [((x["attributes"].get("assetDeliveryState") or {}).get("state")) for x in existing]
         # Some are stuck in Apple's processing queue: upload just those again,
         # then put the set back in order.
         ids = [x["id"] for x in existing]
@@ -365,10 +372,10 @@ def upload_one(set_id, folder, name):
     return shot["id"]
 
 
-def wait_for_screenshots(ids):
+def wait_for_screenshots(ids, minutes=15, quiet=False):
     """Apple checks each image after upload; submitting before it finishes fails."""
     states = []
-    for _ in range(60):
+    for _ in range(minutes * 6):
         states = []
         for sid in ids:
             s, r = api("GET", f"/v1/appScreenshots/{sid}")
@@ -382,6 +389,8 @@ def wait_for_screenshots(ids):
         error("Screenshots", f"Apple rejected {len(failed)} image(s): {json.dumps(failed)[:500]}")
         return False
     if not all(st == "COMPLETE" for st, _ in states):
+        if quiet:
+            return False
         error("Screenshots", "Apple is still processing the screenshots. Re-run in a few minutes. "
               f"States: {json.dumps(states)[:400]}")
         return False
