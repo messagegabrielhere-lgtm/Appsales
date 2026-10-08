@@ -311,7 +311,15 @@ def upload_screenshots(lid, folder, files):
         return
 
     s, r = api("GET", f"/v1/appScreenshotSets/{set_id}/appScreenshots")
-    for old in r.get("data") or []:
+    existing = r.get("data") or []
+    checksums = [hashlib.md5(open(os.path.join(folder, n), "rb").read()).hexdigest() for n in files]
+    have = [x["attributes"].get("sourceFileChecksum") for x in existing]
+    states = [((x["attributes"].get("assetDeliveryState") or {}).get("state")) for x in existing]
+    if have == checksums and "FAILED" not in states:
+        notice("Screenshots", "Already uploaded and unchanged.")
+        wait_for_screenshots([x["id"] for x in existing])
+        return
+    for old in existing:
         api("DELETE", f"/v1/appScreenshots/{old['id']}")
 
     uploaded = []
@@ -336,21 +344,30 @@ def upload_screenshots(lid, folder, files):
         else:
             error("Screenshots", f"{name}: {why(r)}")
 
-    # Apple checks each image after upload.
-    for _ in range(20):
+    if uploaded and wait_for_screenshots(uploaded):
+        notice("Screenshots", f"Uploaded {len(uploaded)} iPhone screenshots.")
+
+
+def wait_for_screenshots(ids):
+    """Apple checks each image after upload; submitting before it finishes fails."""
+    states = []
+    for _ in range(60):
         states = []
-        for sid in uploaded:
+        for sid in ids:
             s, r = api("GET", f"/v1/appScreenshots/{sid}")
             d = ((r.get("data") or {}).get("attributes") or {}).get("assetDeliveryState") or {}
             states.append((d.get("state"), d.get("errors")))
         if all(st in ("COMPLETE", "FAILED") for st, _ in states):
             break
-        time.sleep(6)
+        time.sleep(10)
     failed = [e for st, e in states if st == "FAILED"]
     if failed:
         error("Screenshots", f"Apple rejected {len(failed)} image(s): {json.dumps(failed)[:500]}")
-    elif uploaded:
-        notice("Screenshots", f"Uploaded {len(uploaded)} iPhone screenshots.")
+        return False
+    if not all(st == "COMPLETE" for st, _ in states):
+        error("Screenshots", "Apple is still processing the screenshots. Re-run in a few minutes.")
+        return False
+    return True
 
 
 def run_input(name):
