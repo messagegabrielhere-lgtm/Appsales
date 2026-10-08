@@ -365,7 +365,8 @@ def wait_for_screenshots(ids):
         error("Screenshots", f"Apple rejected {len(failed)} image(s): {json.dumps(failed)[:500]}")
         return False
     if not all(st == "COMPLETE" for st, _ in states):
-        error("Screenshots", "Apple is still processing the screenshots. Re-run in a few minutes.")
+        error("Screenshots", "Apple is still processing the screenshots. Re-run in a few minutes. "
+              f"States: {json.dumps(states)[:400]}")
         return False
     return True
 
