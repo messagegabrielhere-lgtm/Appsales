@@ -75,13 +75,18 @@ final class HealthReader: ObservableObject {
 
         // Sleep from the evening before the first day, credited to the morning it ended.
         let sleepStart = calendar.date(byAdding: .hour, value: -12, to: start) ?? start
-        var asleep: [DayKey: TimeInterval] = [:]
+        // A Watch and a sleep app often record the same night, so overlapping time counts once.
+        var asleepIntervals: [DayKey: [DateInterval]] = [:]
         for sample in await samples(HKCategoryType(.sleepAnalysis), from: sleepStart, to: end) {
             guard let category = sample as? HKCategorySample,
-                  HKCategoryValueSleepAnalysis.allAsleepValues.map(\.rawValue).contains(category.value) else { continue }
-            asleep[DayKey(category.endDate, calendar: calendar), default: 0] += category.endDate.timeIntervalSince(category.startDate)
+                  HKCategoryValueSleepAnalysis.allAsleepValues.map(\.rawValue).contains(category.value),
+                  category.endDate > category.startDate else { continue }
+            asleepIntervals[DayKey(category.endDate, calendar: calendar), default: []]
+                .append(DateInterval(start: category.startDate, end: category.endDate))
         }
-        for (day, seconds) in asleep where seconds > 0 && days.contains(day) {
+        for (day, intervals) in asleepIntervals where days.contains(day) {
+            let seconds = HealthDay.mergedDuration(intervals)
+            guard seconds > 0 else { continue }
             update(day) { $0.sleepHours = (seconds / 360).rounded() / 10 }
         }
 

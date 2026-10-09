@@ -190,8 +190,17 @@ struct OnDeviceAnswerView: View {
             let response = try await session.respond(to: prompt)
             answer = response.content
             Haptics.success()
+        } catch let error as LanguageModelSession.GenerationError {
+            switch error {
+            case .exceededContextWindowSize:
+                failure = "This period is too long for the on-device model. Choose fewer days, or send it to another assistant."
+            case .guardrailViolation, .refusal:
+                failure = "Apple Intelligence won't answer this question on the device. Send it to another assistant instead."
+            default:
+                failure = "Apple Intelligence couldn't answer this one. Try again, or send it to another assistant."
+            }
         } catch {
-            failure = "Apple Intelligence couldn't answer this one. Try a shorter period, or send it to another assistant."
+            failure = "Apple Intelligence couldn't answer this one. Try again, or send it to another assistant."
         }
     }
 

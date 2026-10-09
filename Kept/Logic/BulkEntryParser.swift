@@ -80,8 +80,11 @@ enum BulkEntryParser {
             guard !line.isEmpty else { continue }
             if let day = current {
                 add(line, to: day)
-            } else {
+            } else if isPreamble(line) {
                 result.preamble.append(line)
+            } else {
+                // "3 eggs" above a "Yesterday" line was eaten on the day being logged.
+                add(line, to: defaultDay)
             }
         }
 
@@ -90,6 +93,19 @@ enum BulkEntryParser {
     }
 
     // MARK: Lines
+
+    /// A title or profile line above the first date, such as "Food log", "39, 6 ft 4 in,
+    /// 280 lb" or "Goal: lose 20 lb". Anything else is something eaten, drunk or done.
+    static func isPreamble(_ line: String) -> Bool {
+        let lower = line.lowercased()
+        let words = Set(tokens(lower))
+        let titleWords: Set<String> = ["log", "diary", "journal", "tracker", "notes", "list", "intake"]
+        if !words.isDisjoint(with: titleWords) && classify(line) == .food && line.rangeOfCharacter(from: .decimalDigits) == nil {
+            return true
+        }
+        let profilePattern = #"\b(\d{2,3}\s*(lb|lbs|kg|pounds)|\d\s*(ft|')\s*\d+|\d{2}\s*(years?|yrs?|yo)\b|age|height|weight|goals?|bmi|diagnos|allerg|medication)"#
+        return lower.range(of: profilePattern, options: .regularExpression) != nil
+    }
 
     /// Strips list bullets, numbering and checkboxes, so "- [x] 2 eggs" becomes "2 eggs".
     static func clean(_ raw: String) -> String {
@@ -120,7 +136,10 @@ enum BulkEntryParser {
         let lower = text.lowercased()
         if let habit = habits.first(where: { habit in
             let name = habit.name.trimmingCharacters(in: .whitespaces).lowercased()
-            return name.count >= 3 && lower.contains(name)
+            guard name.count >= 3 else { return false }
+            // Whole words, so a "Tea" checklist item isn't ticked by "steak".
+            let pattern = "(^|[^a-z0-9])" + NSRegularExpression.escapedPattern(for: name) + "($|[^a-z0-9])"
+            return lower.range(of: pattern, options: .regularExpression) != nil
         }) {
             item.habitID = habit.id
         }
@@ -158,7 +177,7 @@ enum BulkEntryParser {
         let lower = item.text.lowercased()
         copy.kind = kind
         copy.milliliters = kind == .drink
-            ? (milliliters(in: lower) ?? (isPlainWater(lower) ? glassMilliliters : nil))
+            ? (milliliters(in: lower) ?? (isPlainWater(lower) ? glassMilliliters * waterCount(in: lower) : nil))
             : nil
         copy.minutes = kind == .activity ? minutes(in: lower) : nil
         return copy
@@ -330,11 +349,29 @@ enum BulkEntryParser {
     /// "Water", "Glass of water", "Big bottle of water": counts as a glass. "Coconut water" does
     /// not, since it isn't plain water.
     static func isPlainWater(_ lower: String) -> Bool {
-        let filler: Set<String> = ["water", "glass", "glasses", "of", "a", "bottle", "sparkling",
+        let filler: Set<String> = ["water", "glass", "glasses", "of", "a", "bottle", "bottles", "sparkling",
                                    "still", "cold", "ice", "iced", "big", "large", "small", "tap",
-                                   "filtered", "plain", "bubbly", "some"]
-        let words = tokens(lower)
-        return words.contains("water") && words.allSatisfy(filler.contains)
+                                   "filtered", "plain", "bubbly", "some", "cup", "cups", "x"]
+        let words = tokens(timesCount(lower))
+        return words.contains("water") && words.allSatisfy { filler.contains($0) || countWords[$0] != nil || Int($0) != nil }
+    }
+
+    private static let countWords: [String: Int] = [
+        "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8,
+    ]
+
+    /// "water x3" and "water 3x" → "water 3".
+    private static func timesCount(_ lower: String) -> String {
+        lower.replacingOccurrences(of: #"\bx\s*(\d+)\b|\b(\d+)\s*x\b"#, with: "$1$2", options: .regularExpression)
+    }
+
+    /// "2 glasses of water" and "water x3" are that many glasses; plain "water" is one.
+    static func waterCount(in lower: String) -> Int {
+        for word in tokens(timesCount(lower)) {
+            if let number = Int(word), (1...12).contains(number) { return number }
+            if let number = countWords[word] { return number }
+        }
+        return 1
     }
 
     // MARK: Dates
@@ -364,15 +401,19 @@ enum BulkEntryParser {
             return Header(day: day, remainder: nil)
         }
 
-        // "10/06/26 - Steak salad": only with a full numeric date, so "1/2 avocado" stays food.
-        let inline = #"^\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4}\s*[-–—:]\s*\S"#
-        if line.range(of: inline, options: .regularExpression) != nil {
-            let original = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-            let datePrefix = String(original.prefix { $0.isNumber || "/.-".contains($0) })
-            let dateText = datePrefix.trimmingCharacters(in: CharacterSet(charactersIn: "/.-"))
-            if let day = parseDate(dateText, today: today, monthFirst: monthFirst, calendar: calendar) {
-                let rest = clean(String(original.dropFirst(datePrefix.count))
-                    .trimmingCharacters(in: CharacterSet(charactersIn: " -–—:")))
+        // "10/06/26 - Steak salad", "Yesterday: pizza", "Oct 5 - pizza", "Monday: tacos".
+        // A numeric date needs its year here, so "1/2 - avocado" stays food.
+        let original = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: #"^#+\s*"#, with: "", options: .regularExpression)
+        let inline = #"^(.{3,30}?)\s*(:|\s[-–—]|[-–—]\s)\s*(\S.*)$"#
+        if let regex = try? NSRegularExpression(pattern: inline),
+           let match = regex.firstMatch(in: original, range: NSRange(original.startIndex..., in: original)),
+           let prefixRange = Range(match.range(at: 1), in: original),
+           let restRange = Range(match.range(at: 3), in: original) {
+            let dateText = original[prefixRange].lowercased().trimmingCharacters(in: .whitespaces)
+            let shortNumeric = dateText.range(of: #"^\d{1,2}[/.\-]\d{1,2}$"#, options: .regularExpression) != nil
+            if !shortNumeric, let day = parseDate(dateText, today: today, monthFirst: monthFirst, calendar: calendar) {
+                let rest = clean(String(original[restRange]))
                 return Header(day: day, remainder: rest.isEmpty ? nil : rest)
             }
         }
@@ -381,6 +422,17 @@ enum BulkEntryParser {
 
     private static let weekdays = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
                                    "mon", "tue", "tues", "wed", "thu", "thur", "thurs", "fri", "sat", "sun"]
+    /// Calendar weekday numbers (Sunday is 1) for `weekdays`, in the same order.
+    private static let weekdayNumbers = [2, 3, 4, 5, 6, 7, 1, 2, 3, 3, 4, 5, 5, 5, 6, 7, 1]
+
+    private static func mostRecent(weekday: Int, before today: DayKey, calendar: Calendar) -> DayKey? {
+        for offset in 0..<7 {
+            let day = today.adding(days: -offset, calendar: calendar)
+            if calendar.component(.weekday, from: day.date(calendar: calendar)) == weekday { return day }
+        }
+        return nil
+    }
+
     private static let months = ["january", "february", "march", "april", "may", "june", "july",
                                  "august", "september", "october", "november", "december"]
 
@@ -389,10 +441,11 @@ enum BulkEntryParser {
         if line == "today" { return today }
         if line == "yesterday" { return today.adding(days: -1, calendar: calendar) }
 
-        // Drop a leading weekday: "Mon 10/6", "Monday, October 6".
-        for name in weekdays where line.hasPrefix(name) {
+        // Drop a leading weekday: "Mon 10/6", "Monday, October 6". Alone, it's the most
+        // recent such day: "Monday" on a Wednesday is two days ago.
+        for (index, name) in weekdays.enumerated() where line.hasPrefix(name) {
             let rest = line.dropFirst(name.count)
-            if rest.isEmpty { return nil }
+            if rest.isEmpty { return mostRecent(weekday: weekdayNumbers[index], before: today, calendar: calendar) }
             if let next = rest.first, next == " " || next == "," || next == "." {
                 line = rest.trimmingCharacters(in: CharacterSet(charactersIn: " ,."))
                 break

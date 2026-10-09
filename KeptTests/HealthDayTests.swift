@@ -32,4 +32,12 @@ final class HealthDayTests: XCTestCase {
         XCTAssertTrue(text.contains("## Tuesday 6 October 2026\nApple Health: 12,000 steps"), text)
         XCTAssertTrue(text.contains("Apple Health lines come from the iPhone"))
     }
+
+    func testOverlappingSleepFromTwoSourcesCountsOnce() {
+        let night = Date(timeIntervalSince1970: 1_790_000_000)
+        let watch = DateInterval(start: night, duration: 7 * 3600)
+        let ring = DateInterval(start: night.addingTimeInterval(1800), duration: 7 * 3600)
+        let nap = DateInterval(start: night.addingTimeInterval(14 * 3600), duration: 3600)
+        XCTAssertEqual(HealthDay.mergedDuration([ring, nap, watch]), 8.5 * 3600)
+    }
 }

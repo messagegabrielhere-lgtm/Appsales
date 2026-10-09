@@ -13,6 +13,22 @@ struct HealthDay: Equatable {
     /// "Running 32 min", in the order they happened.
     var workouts: [String] = []
 
+    /// Total time covered by the intervals, counting overlaps once.
+    static func mergedDuration(_ intervals: [DateInterval]) -> TimeInterval {
+        var total: TimeInterval = 0
+        var current: DateInterval?
+        for interval in intervals.sorted(by: { $0.start < $1.start }) {
+            if let open = current, interval.start <= open.end {
+                current = DateInterval(start: open.start, end: max(open.end, interval.end))
+            } else {
+                if let open = current { total += open.duration }
+                current = interval
+            }
+        }
+        if let open = current { total += open.duration }
+        return total
+    }
+
     var isEmpty: Bool {
         steps == nil && exerciseMinutes == nil && activeCalories == nil && sleepHours == nil
             && weightKilograms == nil && restingHeartRate == nil && workouts.isEmpty

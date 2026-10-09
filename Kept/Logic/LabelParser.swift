@@ -26,7 +26,7 @@ enum LabelParser {
         if let serving = firstMatch(#"serving size\s*:?\s*([^\n]+)"#, in: text) {
             details.append("serving " + serving.trimmingCharacters(in: .whitespaces))
         }
-        if let calories = firstMatch(#"calories\s*:?\s*(\d{1,4})"#, in: text) { details.append("\(calories) kcal") }
+        if let calories = calories(in: lines) { details.append("\(calories) kcal") }
         for (label, pattern) in [("protein", #"protein\s*:?\s*(\d{1,3}(?:\.\d)?)\s*g"#),
                                  ("carbs", #"total carbohydrates?\s*:?\s*(\d{1,3}(?:\.\d)?)\s*g"#),
                                  ("fat", #"total fat\s*:?\s*(\d{1,3}(?:\.\d)?)\s*g"#),
@@ -50,16 +50,17 @@ enum LabelParser {
         guard !found.isEmpty else { return "Supplement: " + (productName(lines) ?? "Scanned supplement") }
         let listed = found.prefix(3).map { "\($0.name) \($0.amount)" }.joined(separator: ", ")
         if found.count > 3 {
-            return "Supplement: \(productName(lines) ?? "Multivitamin") (\(listed) and \(found.count - 3) more)"
+            return "Supplement: \(productName(lines) ?? "Scanned supplement") (\(listed) and \(found.count - 3) more)"
         }
         return "Supplement: " + listed
     }
 
     /// "Magnesium (as magnesium glycinate) 400 mg 95%" → Magnesium (as magnesium glycinate), 400 mg.
     static func doses(in lines: [String]) -> [Dose] {
-        let skip = ["serving", "calories", "daily value", "servings per", "amount per", "%dv"]
+        let skip = ["serving", "calories", "daily value", "servings per", "amount per", "%dv",
+                    "total fat", "total carbohydrate", "total sugar", "saturated fat", "trans fat"]
         var result: [Dose] = []
-        for line in lines {
+        for line in pairingNamesWithAmounts(lines) {
             let lower = line.lowercased()
             guard !skip.contains(where: lower.contains) else { continue }
             guard let match = line.range(of: #"(\d[\d,]*(?:\.\d+)?)\s*(mg|mcg|µg|iu|IU|g)\b"#, options: [.regularExpression, .caseInsensitive]) else { continue }
@@ -74,9 +75,46 @@ enum LabelParser {
         return result
     }
 
+    /// Wide panels come back from the camera as a column of names and a column of amounts:
+    /// "Magnesium (as magnesium glycinate)" then "400 mg". Put each pair back on one line.
+    static func pairingNamesWithAmounts(_ lines: [String]) -> [String] {
+        let amountOnly = #"^\d[\d,]*(\.\d+)?\s*(mg|mcg|µg|iu|IU|g)\b"#
+        var result: [String] = []
+        var index = 0
+        while index < lines.count {
+            let line = lines[index]
+            let hasAmount = line.range(of: #"\d[\d,]*(\.\d+)?\s*(mg|mcg|µg|iu|IU|g)\b"#, options: [.regularExpression, .caseInsensitive]) != nil
+            if !hasAmount, line.contains(where: \.isLetter), index + 1 < lines.count,
+               lines[index + 1].range(of: amountOnly, options: [.regularExpression, .caseInsensitive]) != nil {
+                result.append(line + " " + lines[index + 1])
+                index += 2
+            } else {
+                result.append(line)
+                index += 1
+            }
+        }
+        return result
+    }
+
+    /// "Calories 230", or "Calories" with the number a line or two below it.
+    static func calories(in lines: [String]) -> String? {
+        for (index, line) in lines.enumerated() {
+            let lower = line.lowercased()
+            guard lower.hasPrefix("calories") || lower.hasPrefix("energy") else { continue }
+            if let number = firstMatch(#"(?:calories|energy)\s*:?\s*(\d{1,4})\b"#, in: line) { return number }
+            for next in lines.dropFirst(index + 1).prefix(2) {
+                let trimmed = next.trimmingCharacters(in: .whitespaces)
+                if trimmed.range(of: #"^\d{1,4}$"#, options: .regularExpression) != nil { return trimmed }
+            }
+        }
+        return firstMatch(#"calories\s*:?\s*(\d{1,4})"#, in: lines.joined(separator: "\n"))
+    }
+
     /// The first line that reads like a name rather than panel text.
     private static func productName(_ lines: [String]) -> String? {
-        let panelWords = ["facts", "serving", "amount", "calories", "daily value", "%", "total", "ingredients"]
+        let panelWords = ["facts", "serving", "amount", "calories", "daily value", "%", "total", "ingredients",
+                          "saturated", "trans fat", "cholesterol", "sodium", "sugars", "includes", "dietary",
+                          "carbohydrate", "potassium"]
         return lines.first { line in
             let lower = line.lowercased()
             return line.count >= 3 && line.count <= 40 && line.contains(where: \.isLetter)

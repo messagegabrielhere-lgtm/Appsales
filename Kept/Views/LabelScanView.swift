@@ -83,6 +83,8 @@ struct LabelScanView: View {
                     } else {
                         problem = "That photo couldn't be opened."
                     }
+                    // So choosing the same photo again after a failed read tries again.
+                    photo = nil
                 }
             }
         }

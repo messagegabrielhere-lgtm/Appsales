@@ -10,14 +10,14 @@ import Foundation
 enum SpeechSplitter {
     static func list(from transcript: String) -> String {
         var text = normalizeNumbers(in: transcript.trimmingCharacters(in: .whitespacesAndNewlines))
+            // "Dr. Pepper" is a name, not the end of a sentence.
+            .replacingOccurrences(of: #"\b(Dr|Mr|Mrs|Ms|St|vs)\."#, with: "$1", options: [.regularExpression, .caseInsensitive])
         var lines: [String] = []
 
-        // A leading day: "Yesterday I had…", "Today…".
-        let lower = text.lowercased()
-        for (word, header) in [("yesterday", "Yesterday"), ("today", "Today")] where lower.hasPrefix(word) {
-            lines.append(header)
-            text = String(text.dropFirst(word.count))
-            break
+        // A leading day: "Yesterday I had…", "Today's lunch…". Not "Todays" or "Yesterdays".
+        if let match = text.range(of: #"^(yesterday|today)(['’]s)?\b"#, options: [.regularExpression, .caseInsensitive]) {
+            lines.append(text[match].lowercased().hasPrefix("yesterday") ? "Yesterday" : "Today")
+            text = String(text[match.upperBound...])
         }
 
         for chunk in strongChunks(text) {
@@ -29,7 +29,8 @@ enum SpeechSplitter {
     // MARK: Breaking
 
     private static let strongBreaks = [
-        #"[,;.!?]+"#, #"\band then\b"#, #"\bthen\b"#, #"\bafter that\b"#, #"\balso\b"#, #"\bplus\b"#,
+        // Commas and full stops, but not inside numbers: "1.5 liters", "1,000 mg".
+        #"[;!?]+|(?<!\d)[.,]+|[.,]+(?!\d)"#, #"\band then\b"#, #"\bthen\b"#, #"\bafter that\b"#, #"\balso\b"#, #"\bplus\b"#,
         #"\bfollowed by\b"#, #"\blater\b"#,
     ]
 
@@ -109,6 +110,10 @@ enum SpeechSplitter {
                 changed = true
                 break
             }
+        }
+        // "creatine and" left over when the next thing was cut off at "later".
+        while let range = text.range(of: #"\s+(and|with|then|or)$"#, options: [.regularExpression, .caseInsensitive]) {
+            text = String(text[..<range.lowerBound])
         }
         guard let first = text.first else { return "" }
         return first.uppercased() + text.dropFirst()

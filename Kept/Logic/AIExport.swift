@@ -557,7 +557,21 @@ enum AIExportBuilder {
 
     /// Fixed English and Gregorian output, whatever the device's settings, so the AI always
     /// receives the same unambiguous format.
+    /// Formatters are slow to make, and a year of entries needs thousands of lines.
+    private static var formatters: [String: DateFormatter] = [:]
+    private static let formattersLock = NSLock()
+
     private static func formatter(_ format: String, calendar: Calendar) -> DateFormatter {
+        let key = format + "|" + calendar.timeZone.identifier
+        formattersLock.lock()
+        defer { formattersLock.unlock() }
+        if let cached = formatters[key] { return cached }
+        let made = makeFormatter(format, calendar: calendar)
+        formatters[key] = made
+        return made
+    }
+
+    private static func makeFormatter(_ format: String, calendar: Calendar) -> DateFormatter {
         var gregorian = Calendar(identifier: .gregorian)
         gregorian.timeZone = calendar.timeZone
         let formatter = DateFormatter()

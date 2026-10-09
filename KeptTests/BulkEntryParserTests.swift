@@ -228,4 +228,43 @@ final class BulkEntryParserTests: XCTestCase {
         XCTAssertEqual(items.map(\.text), ["yard work", "fish oil", "Breakfast: eggs", "Mood: good", "8:15 coffee", "dentist"])
         XCTAssertEqual(items.map(\.kind), [.activity, .supplement, .food, .feeling, .drink, .note])
     }
+
+    // MARK: Real-world lists
+
+    func testLinesAboveADateAreLoggedOnTheDefaultDay() {
+        let result = parse("3 eggs\ncoffee\ncreatine 5g\nYesterday\npizza")
+        XCTAssertTrue(result.preamble.isEmpty)
+        XCTAssertEqual(result.days.map(\.day), [today, today.adding(days: -1, calendar: calendar)])
+        XCTAssertEqual(result.days[0].items.map(\.text), ["3 eggs", "coffee", "creatine 5g"])
+        XCTAssertEqual(result.days[1].items.map(\.text), ["pizza"])
+    }
+
+    func testProfileAndTitleLinesStayAboveTheDates() {
+        let result = parse("My food log\n39, 6 ft 4 in, 280 lb\nGoal: lose 20 lb\n10/06/26 -\nSteak")
+        XCTAssertEqual(result.preamble, ["My food log", "39, 6 ft 4 in, 280 lb", "Goal: lose 20 lb"])
+        XCTAssertEqual(result.itemCount, 1)
+    }
+
+    func testWeekdayAndWordDatesWithTheEntryOnTheSameLine() {
+        // Today is Thursday 8 October 2026.
+        let result = parse("Monday\ntacos\nYesterday: pizza 2 slices\nOct 5 - salad\nTue: soup")
+        XCTAssertEqual(result.days.map(\.day), [TestCalendar.day(2026, 10, 5), TestCalendar.day(2026, 10, 7), TestCalendar.day(2026, 10, 6)])
+        XCTAssertEqual(result.days[0].items.map(\.text), ["tacos", "salad"])
+        XCTAssertEqual(result.days[1].items.map(\.text), ["pizza 2 slices"])
+        XCTAssertEqual(result.days[2].items.map(\.text), ["soup"])
+        XCTAssertNil(BulkEntryParser.dateHeader("Breakfast: eggs", today: today, monthFirst: true, calendar: calendar))
+        XCTAssertNil(BulkEntryParser.dateHeader("1/2 - avocado", today: today, monthFirst: true, calendar: calendar))
+    }
+
+    func testGlassesOfWaterCountEachGlass() {
+        let items = parse("2 glasses of water\nwater x3\nTwo bottles of water\nWater").days[0].items
+        XCTAssertEqual(items.map(\.milliliters), [500, 750, 500, 250])
+    }
+
+    func testChecklistMatchesWholeWords() {
+        let tea = Habit(name: "Tea", createdAt: TestCalendar.date(2026, 1, 1))
+        let items = parse("steak and rice\ngreen tea", habits: [tea]).days[0].items
+        XCTAssertNil(items[0].habitID)
+        XCTAssertEqual(items[1].habitID, tea.id)
+    }
 }

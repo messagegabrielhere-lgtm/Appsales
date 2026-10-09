@@ -27,4 +27,20 @@ final class LabelParserTests: XCTestCase {
         XCTAssertEqual(item.kind, .supplement)
         XCTAssertEqual(item.text, "Creatine Monohydrate 5 g")
     }
+
+    func testColumnSplitPanelsKeepTheirNumbers() {
+        let supplement = ["Supplement Facts", "Serving Size 2 Capsules", "Magnesium (as magnesium glycinate)", "400 mg", "95%"]
+        XCTAssertEqual(LabelParser.line(from: supplement), "Supplement: Magnesium (as magnesium glycinate) 400 mg")
+
+        let food = ["Nutrition Facts", "Saturated Fat", "1g", "Granola Bites", "Calories", "% Daily Value*", "230", "Protein 6g"]
+        XCTAssertEqual(LabelParser.line(from: food), "Food: Granola Bites (230 kcal, 6 g protein)")
+    }
+
+    func testFishOilWithFatLines() {
+        let lines = ["Supplement Facts", "Total Fat 2 g", "EPA 650 mg", "DHA 450 mg", "Vitamin E 1 mg", "Omega-3 1200 mg"]
+        let line = LabelParser.line(from: lines)!
+        XCTAssertFalse(line.contains("Total Fat"))
+        XCTAssertFalse(line.contains("Multivitamin"))
+        XCTAssertTrue(line.hasPrefix("Supplement: Scanned supplement (EPA 650 mg"))
+    }
 }

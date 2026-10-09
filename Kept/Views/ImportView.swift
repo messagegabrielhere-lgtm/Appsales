@@ -131,10 +131,16 @@ struct ImportView: View {
             return
         }
 
-        let isSpreadsheet = ["csv", "tsv"].contains(url.pathExtension.lowercased())
+        let namedSpreadsheet = ["csv", "tsv"].contains(url.pathExtension.lowercased())
+        let looksLikeSpreadsheet = namedSpreadsheet
             || text.prefix(while: { $0 != "\n" }).filter({ $0 == "," || $0 == ";" || $0 == "\t" }).count >= 2
-        if isSpreadsheet {
-            guard let conversion = CSVImport.convert(text) else {
+        // A note whose first line is "Breakfast: eggs, toast, coffee" has commas too; if it
+        // isn't a spreadsheet with dates, read it as a list instead of refusing it.
+        let conversion = looksLikeSpreadsheet ? CSVImport.convert(text) : nil
+        if looksLikeSpreadsheet && conversion == nil && !namedSpreadsheet {
+            listRequest = ListRequest(text: text, note: "From \(url.lastPathComponent).")
+        } else if looksLikeSpreadsheet {
+            guard let conversion else {
                 message = ImportMessage(
                     title: "No Dates Found",
                     body: "\(Brand.name) needs a column with dates, such as Date or Day. Check the export, or copy the rows you want and use Paste a List."

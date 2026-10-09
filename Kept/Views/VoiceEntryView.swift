@@ -53,12 +53,14 @@ final class SpeechTranscriber: ObservableObject {
             try engine.start()
             isRecording = true
 
+            // Tapping the mic again carries on after what was already said.
+            let earlier = transcript.trimmingCharacters(in: .whitespaces)
             task = recognizer.recognitionTask(with: request) { [weak self] result, error in
                 let text = result?.bestTranscription.formattedString
                 let done = error != nil || (result?.isFinal ?? false)
                 Task { @MainActor in
                     guard let self else { return }
-                    if let text { self.transcript = text }
+                    if let text { self.transcript = earlier.isEmpty ? text : earlier + " " + text }
                     if done { self.finish() }
                 }
             }
@@ -145,6 +147,8 @@ struct VoiceEntryView: View {
                     .padding(.bottom)
             }
             .navigationTitle("Speak Your Day")
+            // Swiping the sheet away must stop the microphone too.
+            .onDisappear { speech.stop() }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

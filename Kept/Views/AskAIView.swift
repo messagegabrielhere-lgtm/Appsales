@@ -589,6 +589,7 @@ struct AIDisclaimerView: View {
 /// notes. All optional. Stays on the device.
 struct ProfileEditor: View {
     @EnvironmentObject private var store: HabitStore
+    @Environment(\.scenePhase) private var scenePhase
     @State private var profile = UserProfile()
     @State private var notes = ""
     @State private var loaded = false
@@ -652,6 +653,10 @@ struct ProfileEditor: View {
             notes = store.settings.aboutMe
         }
         .onDisappear(perform: save)
+        // Leaving the app mid-edit keeps what was typed, even if iOS closes it later.
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { save() }
+        }
     }
 
     private func row(_ label: String, text: Binding<String>, prompt: String, keyboard: UIKeyboardType = .default) -> some View {
@@ -674,6 +679,7 @@ struct ProfileEditor: View {
     }
 
     private func save() {
+        guard loaded else { return }
         var settings = store.settings
         settings.profile = profile
         settings.aboutMe = notes.trimmingCharacters(in: .whitespacesAndNewlines)

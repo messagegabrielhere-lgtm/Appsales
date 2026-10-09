@@ -32,4 +32,17 @@ final class SpeechSplitterTests: XCTestCase {
         XCTAssertEqual(SpeechSplitter.normalizeNumbers(in: "three hundred"), "3 hundred")
         XCTAssertEqual(SpeechSplitter.normalizeNumbers(in: "sixteen ounces of water"), "16 oz of water")
     }
+
+    func testDecimalsThousandsAndNamesStayWhole() {
+        let lines = SpeechSplitter.list(from: "I had a Dr. Pepper and 1.5 liters of water, then 1,000 mg of vitamin C. Walked 2.5 miles").components(separatedBy: "\n")
+        XCTAssertEqual(lines, ["A Dr Pepper", "1.5 liters of water", "1,000 mg of vitamin C", "Walked 2.5 miles"])
+    }
+
+    func testPossessiveDayAndTrailingAnd() {
+        XCTAssertEqual(SpeechSplitter.list(from: "Today's lunch was a salad").components(separatedBy: "\n"),
+                       ["Today", "Lunch was a salad"])
+        XCTAssertEqual(SpeechSplitter.list(from: "I took creatine and later a protein shake").components(separatedBy: "\n"),
+                       ["Creatine", "A protein shake"])
+        XCTAssertEqual(SpeechSplitter.list(from: "Todays special was soup").components(separatedBy: "\n").first, "Todays special was soup")
+    }
 }
