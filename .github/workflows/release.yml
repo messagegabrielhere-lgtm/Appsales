@@ -22,8 +22,9 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 60
     env:
-      BUNDLE_ID: ${{ secrets.BUNDLE_ID }}
-      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      # Not secret: the same values are in project.yml and scripts/release.sh.
+      BUNDLE_ID: ${{ secrets.BUNDLE_ID || 'com.messagegabrielhere.kept' }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID || 'MAP974T827' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -35,7 +36,9 @@ jobs:
       - name: Check required secrets
         run: |
           missing=""
-          for name in BUNDLE_ID APPLE_TEAM_ID APP_STORE_CONNECT_API_KEY_ID APP_STORE_CONNECT_API_ISSUER_ID APP_STORE_CONNECT_API_KEY_P8 DIST_CERT_P12_BASE64 DIST_CERT_PASSWORD; do
+          # The distribution certificate is optional: without it, Xcode signs with an
+          # Apple cloud-managed certificate through the App Store Connect API key.
+          for name in APP_STORE_CONNECT_API_KEY_ID APP_STORE_CONNECT_API_ISSUER_ID APP_STORE_CONNECT_API_KEY_P8; do
             eval "value=\${$name:-}"
             [ -z "$value" ] && missing="$missing $name"
           done
@@ -47,6 +50,19 @@ jobs:
           APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
           APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
           APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+          DIST_CERT_P12_BASE64: ${{ secrets.DIST_CERT_P12_BASE64 }}
+          DIST_CERT_PASSWORD: ${{ secrets.DIST_CERT_PASSWORD }}
+
+      - name: Choose signing
+        run: |
+          if [ -n "$DIST_CERT_P12_BASE64" ] && [ -n "$DIST_CERT_PASSWORD" ]; then
+            echo "HAS_DIST_CERT=true" >> "$GITHUB_ENV"
+            echo "Signing with the distribution certificate from repository secrets"
+          else
+            echo "HAS_DIST_CERT=false" >> "$GITHUB_ENV"
+            echo "No certificate secrets; signing with an Apple cloud-managed certificate via the API key"
+          fi
+        env:
           DIST_CERT_P12_BASE64: ${{ secrets.DIST_CERT_P12_BASE64 }}
           DIST_CERT_PASSWORD: ${{ secrets.DIST_CERT_PASSWORD }}
 
@@ -72,6 +88,7 @@ jobs:
           APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
 
       - name: Install distribution certificate
+        if: env.HAS_DIST_CERT == 'true'
         run: |
           CERT_PATH="$RUNNER_TEMP/dist.p12"
           printf '%s' "$DIST_CERT_P12_BASE64" | base64 --decode > "$CERT_PATH"
