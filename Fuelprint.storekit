@@ -1,0 +1,31 @@
+{
+  "identifier" : "6C1F2A4E",
+  "nonRenewingSubscriptions" : [],
+  "products" : [
+    {
+      "displayPrice" : "4.99",
+      "familyShareable" : false,
+      "internalID" : "6814644601",
+      "localizations" : [
+        {
+          "description" : "Unlimited AI questions, every period, Trends and Apple Health.",
+          "displayName" : "Fuelprint Unlock",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.messagegabrielhere.kept.unlock",
+      "referenceName" : "Fuelprint Unlock",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "6814644588",
+    "_developerTeamID" : "MAP974T827",
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : []
+  },
+  "subscriptionGroups" : [],
+  "version" : { "major" : 4, "minor" : 0 }
+}

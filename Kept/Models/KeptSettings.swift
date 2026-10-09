@@ -96,6 +96,8 @@ struct KeptSettings: Codable, Equatable {
     var acceptedAIDisclaimer: Bool = false
     /// Include Apple Health (steps, workouts, sleep, weight, resting heart rate) in prompts.
     var includeHealth: Bool = false
+    /// AI questions asked without the Unlock, counted against `UnlockPolicy.freeQuestions`.
+    var freeQuestionsUsed: Int = 0
 
     init() {}
 
@@ -104,7 +106,7 @@ struct KeptSettings: Codable, Equatable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case profile, aboutMe, includeAboutMe, glassMilliliters, hasOnboarded, acceptedAIDisclaimer, includeHealth
+        case profile, aboutMe, includeAboutMe, glassMilliliters, hasOnboarded, acceptedAIDisclaimer, includeHealth, freeQuestionsUsed
     }
 
     init(from decoder: Decoder) throws {
@@ -117,5 +119,6 @@ struct KeptSettings: Codable, Equatable {
         hasOnboarded = try container.decodeIfPresent(Bool.self, forKey: .hasOnboarded) ?? false
         acceptedAIDisclaimer = try container.decodeIfPresent(Bool.self, forKey: .acceptedAIDisclaimer) ?? false
         includeHealth = try container.decodeIfPresent(Bool.self, forKey: .includeHealth) ?? false
+        freeQuestionsUsed = try container.decodeIfPresent(Int.self, forKey: .freeQuestionsUsed) ?? 0
     }
 }

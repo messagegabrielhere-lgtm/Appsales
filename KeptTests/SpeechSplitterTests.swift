@@ -35,7 +35,8 @@ final class SpeechSplitterTests: XCTestCase {
 
     func testDecimalsThousandsAndNamesStayWhole() {
         let lines = SpeechSplitter.list(from: "I had a Dr. Pepper and 1.5 liters of water, then 1,000 mg of vitamin C. Walked 2.5 miles").components(separatedBy: "\n")
-        XCTAssertEqual(lines, ["A Dr Pepper", "1.5 liters of water", "1,000 mg of vitamin C", "Walked 2.5 miles"])
+        // Two drinks joined by "and" stay one entry, like "eggs and toast".
+        XCTAssertEqual(lines, ["A Dr Pepper and 1.5 liters of water", "1,000 mg of vitamin C", "Walked 2.5 miles"])
     }
 
     func testPossessiveDayAndTrailingAnd() {

@@ -162,6 +162,36 @@ final class UserJourneyTests: XCTestCase {
         }
     }
 
+    func test5_FreeUserMeetsTheUnlock() {
+        launch("-fresh")
+        if app.buttons["Continue"].waitForExistence(timeout: 5) { app.buttons["Continue"].tap() }
+        app.tabBars.buttons["Ask AI"].tap()
+        XCTAssertTrue(app.buttons["Send to AI"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH '5 free questions left'")).firstMatch.exists,
+                      "A new user should see their free questions")
+        snap("ask-ai-free")
+
+        // A longer period asks for the Unlock instead of sending.
+        let month = app.buttons.containing(NSPredicate(format: "label CONTAINS '30 days'")).firstMatch
+        if !month.isHittable { app.scrollViews.firstMatch.swipeLeft() }
+        month.tap()
+        app.buttons["Send to AI"].tap()
+        XCTAssertTrue(app.staticTexts["Fuelprint Unlock"].waitForExistence(timeout: 5), "The Unlock should explain itself")
+        snap("unlock")
+        app.buttons["Not Now"].tap()
+
+        // The free period sends, and counts one question.
+        let week = app.buttons.containing(NSPredicate(format: "label CONTAINS '7 days'")).firstMatch
+        if !week.isHittable { app.scrollViews.firstMatch.swipeRight() }
+        week.tap()
+        app.buttons["Send to AI"].tap()
+        if app.buttons["I Understand"].waitForExistence(timeout: 3) { app.buttons["I Understand"].tap() }
+        XCTAssertTrue(app.navigationBars["Send to AI"].waitForExistence(timeout: 5))
+        app.navigationBars["Send to AI"].buttons["Done"].tap()
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH '4 free questions left'")).firstMatch.waitForExistence(timeout: 3))
+        snap("ask-ai-after-one")
+    }
+
     // MARK: Helpers
 
     static let grokStyleAnswer = """

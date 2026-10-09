@@ -78,6 +78,8 @@ targets:
       testTargets:
         - KeptTests
         - KeptUITests
+      # Lets the Unlock be bought in the simulator and Xcode without the App Store.
+      storeKitConfiguration: Fuelprint.storekit
 
   KeptWidget:
     type: app-extension

@@ -12,7 +12,7 @@ mkdir -p "$work/Sources/Kept" "$work/Tests/KeptTests"
 
 cp Kept/Models/*.swift Kept/Logic/*.swift Kept/Shared/Brand.swift "$work/Sources/Kept/"
 for test in TestSupport DayKeyTests LogEntryTests LogInsightsTests AIExportTests StreakCalculatorTests \
-            ReminderPlannerTests HabitCodableTests BulkEntryParserTests CSVImportTests BackupMergeTests ReviewPromptTests SpeechSplitterTests HealthDayTests EstimateParserTests LabelParserTests; do
+            ReminderPlannerTests HabitCodableTests BulkEntryParserTests CSVImportTests BackupMergeTests ReviewPromptTests SpeechSplitterTests HealthDayTests EstimateParserTests LabelParserTests UnlockPolicyTests; do
   cp "KeptTests/$test.swift" "$work/Tests/KeptTests/"
 done
 

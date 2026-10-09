@@ -1,0 +1,40 @@
+name: App Store release
+
+# Release day: set the price to Free and release the approved version together.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Approved version to release"
+        required: true
+        default: "2.3.0"
+      price_free:
+        description: "Set the app's price to Free"
+        type: boolean
+        default: true
+      release:
+        description: "Release the approved version"
+        type: boolean
+        default: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+      APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+      APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install --quiet pyjwt cryptography requests
+      - name: Release
+        run: |
+          args=(--version "${{ inputs.version }}")
+          [ "${{ inputs.price_free }}" = "true" ] && args+=(--price-free)
+          [ "${{ inputs.release }}" = "true" ] && args+=(--release)
+          python3 scripts/app_store_release.py "${args[@]}"

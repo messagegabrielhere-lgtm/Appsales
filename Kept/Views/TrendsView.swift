@@ -5,6 +5,8 @@ import SwiftUI
 /// supplement consistency from the log. Trends without a food database.
 struct TrendsView: View {
     @EnvironmentObject private var store: HabitStore
+    @EnvironmentObject private var purchases: Purchases
+    @State private var showingUnlock = false
     @State private var span = 30
     @State private var savedMessage: String?
 
@@ -21,6 +23,27 @@ struct TrendsView: View {
     }
 
     var body: some View {
+        if purchases.isUnlocked {
+            charts
+        } else {
+            ContentUnavailableView {
+                Label("Trends", systemImage: "chart.xyaxis.line")
+            } description: {
+                Text("See calories, protein and fiber from your AI answers, with water, how you felt and supplement consistency, over 30 days to a year.")
+            } actions: {
+                Button("Get Fuelprint Unlock") { showingUnlock = true }
+                    .buttonStyle(.borderedProminent)
+            }
+            .navigationTitle("Trends")
+            .sheet(isPresented: $showingUnlock) {
+                UnlockView(reason: "Trends is part of Fuelprint Unlock.")
+                    .environmentObject(purchases)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var charts: some View {
         let window = Set(days)
         let estimates = store.estimates.filter { window.contains($0.day) }
 

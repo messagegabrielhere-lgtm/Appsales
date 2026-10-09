@@ -62,6 +62,13 @@ jobs:
           ref: screenshots
           path: screenshots
 
+      - name: Get the in-app purchase review screenshot
+        uses: actions/checkout@v4
+        continue-on-error: true
+        with:
+          ref: journeys
+          path: journeys
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -74,4 +81,6 @@ jobs:
           args=(--version "${{ inputs.version }}" --listing "${{ inputs.listing }}" --screenshots screenshots/marketing)
           [ -n "${{ inputs.build }}" ] && args+=(--build "${{ inputs.build }}")
           [ "${{ inputs.submit }}" = "true" ] && args+=(--submit)
+          shot=$(ls journeys/test5_FreeUserMeetsTheUnlock-*-unlock.png 2>/dev/null | head -1 || true)
+          [ -n "$shot" ] && args+=(--iap-screenshot "$shot")
           python3 scripts/app_store_connect.py "${args[@]}"

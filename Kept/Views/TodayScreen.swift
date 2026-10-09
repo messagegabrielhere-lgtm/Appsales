@@ -3,6 +3,7 @@ import SwiftUI
 /// The Today tab: one day at a time, stepping back with the arrows to fill in earlier days.
 struct TodayScreen: View {
     @EnvironmentObject private var store: HabitStore
+    @EnvironmentObject private var purchases: Purchases
     @Environment(\.scenePhase) private var scenePhase
     @Binding var pendingKind: LogKind?
 
@@ -49,6 +50,7 @@ struct TodayScreen: View {
         .sheet(isPresented: $showingSettings) {
             SettingsView()
                 .environmentObject(store)
+                .environmentObject(purchases)
         }
         .onChange(of: pendingKind) { _, kind in
             // Quick logging from a widget or deep link always means "now".

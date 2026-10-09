@@ -2,8 +2,10 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject private var store: HabitStore
+    @EnvironmentObject private var purchases: Purchases
     @Environment(\.dismiss) private var dismiss
     @State private var showingDisclaimer = false
+    @State private var showingUnlock = false
 
     private var version: String {
         let short = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "2.0"
@@ -36,6 +38,30 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    if purchases.isUnlocked {
+                        Label("Fuelprint Unlock: thank you!", systemImage: "lock.open.fill")
+                    } else {
+                        Button {
+                            showingUnlock = true
+                        } label: {
+                            Label("Get Fuelprint Unlock", systemImage: "lock.open")
+                        }
+                        Button("Restore Purchase") {
+                            Task { await purchases.restore() }
+                        }
+                        if let problem = purchases.problem {
+                            Text(problem)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                } footer: {
+                    Text(purchases.isUnlocked
+                         ? "Unlimited AI questions, every period, Trends and Apple Health."
+                         : "One-time purchase for unlimited AI questions, every period, Trends and Apple Health. \(UnlockPolicy.questionsLeft(used: store.settings.freeQuestionsUsed)) free questions left.")
+                }
+
                 Section {
                     Picker("Glass size", selection: glassBinding) {
                         ForEach(glassOptions, id: \.self) { option in
@@ -115,6 +141,10 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
+            .sheet(isPresented: $showingUnlock) {
+                UnlockView()
+                    .environmentObject(purchases)
+            }
             .sheet(isPresented: $showingDisclaimer) {
                 AIDisclaimerView(alreadyAccepted: true) {
                     showingDisclaimer = false

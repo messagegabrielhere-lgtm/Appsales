@@ -3,11 +3,13 @@ import SwiftUI
 @main
 struct KeptApp: App {
     @StateObject private var store = KeptApp.makeStore()
+    @StateObject private var purchases = Purchases()
 
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environmentObject(store)
+                .environmentObject(purchases)
         }
     }
 

@@ -408,6 +408,129 @@ def update_review_details(client, version, previous, notes):
     print("App Review notes set; sign-in not required")
 
 
+def set_release_type(client, version, release):
+    """"Manual" holds an approved version until it's released (scripts/app_store_release.py);
+    anything else, or no Release section, goes live as soon as Apple approves it."""
+    wanted = "MANUAL" if release and release.strip().lower().startswith("manual") else "AFTER_APPROVAL"
+    if version["attributes"].get("releaseType") != wanted:
+        client.update("appStoreVersions", version["id"], {"releaseType": wanted})
+    print("Release: " + ("held for a manual release after approval" if wanted == "MANUAL" else "automatic after approval"))
+
+
+def parse_pairs(block):
+    pairs = {}
+    for line in block.splitlines():
+        key, sep, value = line.partition(":")
+        if sep:
+            pairs[key.strip().lower()] = value.strip()
+    return pairs
+
+
+def ensure_in_app_purchase(client, app_id, block, screenshot):
+    """Creates or updates a non-consumable in-app purchase from the listing's In-app purchase
+    section: localization, US base price (Apple sets the other territories), availability,
+    review screenshot, and adds it to the next submission."""
+    info = parse_pairs(block)
+    product_id = info["product id"]
+    name = info.get("reference name", info["display name"])
+    if len(info["display name"]) > 30 or len(info["description"]) > 55:
+        raise Failure("In-app purchase display name must be 30 characters or fewer, description 55 or fewer")
+
+    existing = [i for i in client.get_all(f"/v1/apps/{app_id}/inAppPurchasesV2")
+                if i["attributes"].get("productId") == product_id]
+    attributes = {"name": name, "reviewNote": info.get("review note", ""), "familySharable": False}
+    if existing:
+        iap = existing[0]
+        client.request("PATCH", f"/v2/inAppPurchases/{iap['id']}", json={"data": {
+            "type": "inAppPurchases", "id": iap["id"], "attributes": attributes}})
+        print(f"In-app purchase {product_id} exists ({iap['attributes'].get('state')})")
+    else:
+        iap = client.request("POST", "/v2/inAppPurchases", json={"data": {
+            "type": "inAppPurchases",
+            "attributes": {**attributes, "productId": product_id, "inAppPurchaseType": "NON_CONSUMABLE"},
+            "relationships": {"app": {"data": {"type": "apps", "id": app_id}}}}})["data"]
+        print(f"Created in-app purchase {product_id}")
+    iap_id = iap["id"]
+
+    # Localization (en-US).
+    localizations = client.get_all(f"/v2/inAppPurchases/{iap_id}/inAppPurchaseLocalizations")
+    text = {"name": info["display name"], "description": info["description"]}
+    current = next((l for l in localizations if l["attributes"]["locale"] == "en-US"), None)
+    if current:
+        client.update("inAppPurchaseLocalizations", current["id"], text)
+    else:
+        client.create("inAppPurchaseLocalizations", {**text, "locale": "en-US"},
+                      {"inAppPurchaseV2": ("inAppPurchases", iap_id)})
+    print(f"Name: {text['name']}  Description: {text['description']}")
+
+    # Price: the US price point; Apple equalizes every other storefront from it.
+    price = info["price (usd)"]
+    schedule = client.request("GET", f"/v2/inAppPurchases/{iap_id}/iapPriceSchedule", allow=(404,))
+    if not schedule or not (schedule.get("data") or {}).get("id"):
+        points = client.get_all(f"/v2/inAppPurchases/{iap_id}/pricePoints", **{"filter[territory]": "USA", "limit": 200})
+        point = next((p for p in points if p["attributes"]["customerPrice"] in (price, price + "0")), None)
+        if not point:
+            raise Failure(f"No US price point of {price} for the in-app purchase")
+        client.request("POST", "/v1/inAppPurchasePriceSchedules", json={
+            "data": {"type": "inAppPurchasePriceSchedules", "relationships": {
+                "inAppPurchase": {"data": {"type": "inAppPurchases", "id": iap_id}},
+                "baseTerritory": {"data": {"type": "territories", "id": "USA"}},
+                "manualPrices": {"data": [{"type": "inAppPurchasePrices", "id": "${price}"}]}}},
+            "included": [{"type": "inAppPurchasePrices", "id": "${price}",
+                          "attributes": {"startDate": None},
+                          "relationships": {"inAppPurchasePricePoint": {"data": {"type": "inAppPurchasePricePoints", "id": point["id"]}}}}]})
+        print(f"Price: ${price} (US), equalized worldwide")
+    else:
+        print("Price already set; change it in App Store Connect if needed")
+
+    # Available everywhere the app is.
+    availability = client.request("GET", f"/v2/inAppPurchases/{iap_id}/inAppPurchaseAvailability", allow=(404,))
+    if not availability or not (availability.get("data") or {}).get("id"):
+        territories = client.get_all("/v1/territories", limit=200)
+        client.request("POST", "/v1/inAppPurchaseAvailabilities", json={"data": {
+            "type": "inAppPurchaseAvailabilities", "attributes": {"availableInNewTerritories": True},
+            "relationships": {
+                "inAppPurchase": {"data": {"type": "inAppPurchases", "id": iap_id}},
+                "availableTerritories": {"data": [{"type": "territories", "id": t["id"]} for t in territories]}}}})
+        print(f"Available in {len(territories)} storefronts")
+
+    # Review screenshot: the purchase screen as the reviewer will see it.
+    if screenshot:
+        path = Path(screenshot)
+        data = path.read_bytes()
+        checksum = hashlib.md5(data).hexdigest()
+        current = client.request("GET", f"/v2/inAppPurchases/{iap_id}/appStoreReviewScreenshot", allow=(404,))
+        current = (current or {}).get("data")
+        if current and current["attributes"].get("sourceFileChecksum") == checksum:
+            print("Review screenshot already up to date")
+        else:
+            if current:
+                client.request("DELETE", f"/v1/inAppPurchaseAppStoreReviewScreenshots/{current['id']}")
+            shot = client.create("inAppPurchaseAppStoreReviewScreenshots",
+                                 {"fileName": path.name, "fileSize": len(data)},
+                                 {"inAppPurchaseV2": ("inAppPurchases", iap_id)})
+            for operation in shot["attributes"]["uploadOperations"]:
+                headers = {h["name"]: h["value"] for h in operation.get("requestHeaders", [])}
+                chunk = data[operation["offset"]:operation["offset"] + operation["length"]]
+                response = client.session.request(operation["method"], operation["url"], data=chunk, headers=headers, timeout=120)
+                if response.status_code >= 400:
+                    raise Failure(f"Uploading the review screenshot failed ({response.status_code})")
+            client.update("inAppPurchaseAppStoreReviewScreenshots", shot["id"],
+                          {"uploaded": True, "sourceFileChecksum": checksum})
+            print(f"Review screenshot uploaded: {path.name}")
+    return iap_id
+
+
+def submit_in_app_purchase(client, iap_id):
+    """A first in-app purchase is reviewed together with the app version it ships in."""
+    state = client.request("GET", f"/v2/inAppPurchases/{iap_id}")["data"]["attributes"].get("state")
+    if state not in ("READY_TO_SUBMIT", "DEVELOPER_ACTION_NEEDED", "REJECTED"):
+        print(f"In-app purchase is {state}; nothing to submit")
+        return
+    client.create("inAppPurchaseSubmissions", relationships={"inAppPurchaseV2": ("inAppPurchases", iap_id)})
+    print("In-app purchase submitted with this version")
+
+
 def submit(client, app_id, version):
     current = client.get(f"/v1/appStoreVersions/{version['id']}")["data"]
     state = version_state(current)
@@ -442,6 +565,7 @@ def main(argv=None, client=None):
     parser.add_argument("--bundle-id", default="com.messagegabrielhere.kept")
     parser.add_argument("--build-wait", type=int, default=1800, help="Seconds to wait for build processing")
     parser.add_argument("--submit", action="store_true", help="Submit for App Review at the end")
+    parser.add_argument("--iap-screenshot", help="Review screenshot of the in-app purchase screen")
     args = parser.parse_args(argv)
 
     try:
@@ -475,8 +599,18 @@ def main(argv=None, client=None):
         step("App Review information")
         update_review_details(client, version, previous, fields["App Review notes"])
 
+        step("Release")
+        set_release_type(client, version, fields.get("Release"))
+
+        iap_id = None
+        if "In-app purchase" in fields:
+            step("In-app purchase")
+            iap_id = ensure_in_app_purchase(client, app["id"], fields["In-app purchase"], args.iap_screenshot)
+
         if args.submit:
             step("Submitting for review")
+            if iap_id:
+                submit_in_app_purchase(client, iap_id)
             submit(client, app["id"], version)
         else:
             step("Ready. Not submitted: run again with submit enabled, or press Add for Review in App Store Connect.")

@@ -6,6 +6,8 @@ import UIKit
 /// opens the assistant the user picks.
 struct AskAIView: View {
     @EnvironmentObject private var store: HabitStore
+    @EnvironmentObject private var purchases: Purchases
+    @State private var unlockReason: String?
     @Binding var range: AIExportRange
     @State private var template: AIPromptTemplate = .patterns
     @State private var question = ""
@@ -51,6 +53,10 @@ struct AskAIView: View {
         Binding(
             get: { store.settings.includeHealth },
             set: { newValue in
+                if newValue && !purchases.isUnlocked {
+                    unlockReason = "Apple Health in your questions is part of Fuelprint Unlock."
+                    return
+                }
                 Task {
                     let allowed = newValue ? await healthReader.requestAccess() : false
                     var settings = store.settings
@@ -92,13 +98,17 @@ struct AskAIView: View {
             }
 
             Section {
-                RangeChips(selection: $range)
+                RangeChips(selection: $range, locked: purchases.isUnlocked ? [] : Set(AIExportRange.allCases.filter { !UnlockPolicy.isFree($0) }))
                     .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
             } header: {
                 StepHeader(number: 1, title: "Choose a period")
             } footer: {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("\(entryCount == 1 ? "1 entry" : "\(entryCount.formatted()) entries") · about \(text.count.formatted()) characters")
+                    if !purchases.isUnlocked {
+                        let left = UnlockPolicy.questionsLeft(used: store.settings.freeQuestionsUsed)
+                        Text(left == 1 ? "1 free question left. Periods over 7 days need Fuelprint Unlock." : "\(left) free questions left. Periods over 7 days need Fuelprint Unlock.")
+                    }
                     if text.count > Self.longPrompt {
                         Text("That's a long prompt, so Send to an AI App sends it as a text file the assistant can read.")
                     }
@@ -197,8 +207,16 @@ struct AskAIView: View {
         .safeAreaInset(edge: .bottom) {
             SendBar(template: template) {
                 Haptics.tap()
+                guard purchases.isUnlocked || UnlockPolicy.isFree(range) else {
+                    unlockReason = "Asking about \(range.title.lowercased()) is part of Fuelprint Unlock. Today, yesterday and 7 days are free."
+                    return
+                }
+                guard UnlockPolicy.canAsk(unlocked: purchases.isUnlocked, used: store.settings.freeQuestionsUsed) else {
+                    unlockReason = "You've used your \(UnlockPolicy.freeQuestions) free AI questions."
+                    return
+                }
                 if store.settings.acceptedAIDisclaimer {
-                    showingSend = true
+                    openSend()
                 } else {
                     showingDisclaimer = true
                 }
@@ -217,9 +235,13 @@ struct AskAIView: View {
                 store.updateSettings(settings)
                 showingDisclaimer = false
                 if firstTime {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { showingSend = true }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { openSend() }
                 }
             }
+        }
+        .sheet(isPresented: Binding(get: { unlockReason != nil }, set: { if !$0 { unlockReason = nil } })) {
+            UnlockView(reason: unlockReason)
+                .environmentObject(purchases)
         }
         .onAppear(perform: openSendFromLaunchArguments)
         .task(id: "\(range.rawValue)-\(store.settings.includeHealth)") {
@@ -229,6 +251,16 @@ struct AskAIView: View {
             }
             healthDays = await healthReader.days(days)
         }
+    }
+
+    /// Opens the send sheet, counting a free question when there's no Unlock.
+    private func openSend() {
+        if !purchases.isUnlocked {
+            var settings = store.settings
+            settings.freeQuestionsUsed += 1
+            store.updateSettings(settings)
+        }
+        showingSend = true
     }
 
     /// Above this, some assistants' message boxes struggle and a file attachment works better.
@@ -253,6 +285,7 @@ struct AskAIView: View {
 /// Every period, from today to all time, in one scrolling row.
 private struct RangeChips: View {
     @Binding var selection: AIExportRange
+    var locked: Set<AIExportRange> = []
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -263,7 +296,12 @@ private struct RangeChips: View {
                         Haptics.tap()
                         withAnimation(.snappy) { selection = item }
                     } label: {
-                        Text(item.title)
+                        HStack(spacing: 4) {
+                            if locked.contains(item) {
+                                Image(systemName: "lock.fill").font(.caption2)
+                            }
+                            Text(item.title)
+                        }
                             .font(.subheadline.weight(selected ? .semibold : .regular))
                             .padding(.horizontal, 14)
                             .padding(.vertical, 8)

@@ -202,6 +202,20 @@ def main(argv=None, client=None):
         else:
             ok("Review contact", "name, phone and email present")
 
+    if "In-app purchase" in fields:
+        asc.step("In-app purchase")
+        wanted = asc.parse_pairs(fields["In-app purchase"])
+        purchases = [i for i in client.get_all(f"/v1/apps/{app['id']}/inAppPurchasesV2")
+                     if i["attributes"].get("productId") == wanted["product id"]]
+        if not purchases:
+            bad("In-app purchase", f"{wanted['product id']} not created yet (run the App Store publish workflow)")
+        else:
+            iap_state = purchases[0]["attributes"].get("state")
+            if iap_state in ("MISSING_METADATA", "DEVELOPER_ACTION_NEEDED", "REJECTED"):
+                bad("In-app purchase", f"{wanted['product id']} is {iap_state}")
+            else:
+                ok("In-app purchase", f"{wanted['product id']} is {iap_state}")
+
     asc.step("Public pages")
     check_url("Support page", text.get("supportUrl"), brand)
     check_url("Privacy page", localization["attributes"].get("privacyPolicyUrl"), brand)
