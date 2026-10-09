@@ -8,9 +8,9 @@ on:
   workflow_dispatch:
     inputs:
       marketing_version:
-        description: "Version shown on the App Store (e.g. 1.0.0)"
-        required: true
-        default: "1.0.0"
+        description: "Version shown on the App Store. Leave empty to use MARKETING_VERSION from project.yml"
+        required: false
+        default: ""
 
 concurrency:
   group: release
@@ -88,6 +88,19 @@ jobs:
           DIST_CERT_P12_BASE64: ${{ secrets.DIST_CERT_P12_BASE64 }}
           DIST_CERT_PASSWORD: ${{ secrets.DIST_CERT_PASSWORD }}
 
+      - name: Resolve version and build number
+        run: |
+          # Same rules as scripts/release.sh: the version comes from project.yml unless given,
+          # and the build number from the clock, so it always sorts after earlier uploads.
+          version="${{ github.event.inputs.marketing_version }}"
+          if [ -z "$version" ]; then
+            version=$(sed -n 's/^ *MARKETING_VERSION: *"\{0,1\}\([0-9.]*\)"\{0,1\}.*/\1/p' project.yml | head -1)
+          fi
+          [ -n "$version" ] || { echo "::error::No MARKETING_VERSION in project.yml"; exit 1; }
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          echo "BUILD=$(date -u +%Y%m%d%H%M)" >> "$GITHUB_ENV"
+          echo "Releasing version $version"
+
       - name: Archive
         run: |
           set -o pipefail
@@ -102,14 +115,26 @@ jobs:
             -authenticationKeyIssuerID "$APP_STORE_CONNECT_API_ISSUER_ID" \
             APP_BUNDLE_ID="$BUNDLE_ID" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
-            MARKETING_VERSION="${{ github.event.inputs.marketing_version }}" \
-            CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            MARKETING_VERSION="$VERSION" \
+            CURRENT_PROJECT_VERSION="$BUILD" \
             CODE_SIGN_STYLE=Automatic \
                       | tee archive.log \
             | (grep -E "error:|warning:|\*\* (ARCHIVE|BUILD)" || true)
         env:
           APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
           APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+
+      - name: Check purpose strings before uploading
+        run: |
+          # Apple rejects a build (ITMS-90683) whose code or entitlements touch a protected
+          # API without its purpose string. HealthKit needs both Health keys even read-only.
+          plist="$RUNNER_TEMP/Kept.xcarchive/Products/Applications/Kept.app/Info.plist"
+          for key in NSCameraUsageDescription NSMicrophoneUsageDescription NSSpeechRecognitionUsageDescription \
+                     NSHealthShareUsageDescription NSHealthUpdateUsageDescription; do
+            /usr/libexec/PlistBuddy -c "Print :$key" "$plist" >/dev/null 2>&1 \
+              || { echo "::error::Info.plist is missing $key; not uploading"; exit 1; }
+          done
+          echo "Archived version $(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$plist") build $(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$plist")"
 
       - name: Upload to App Store Connect
         run: |
@@ -138,7 +163,7 @@ jobs:
             -authenticationKeyIssuerID "$APP_STORE_CONNECT_API_ISSUER_ID" \
             | tee export.log \
             | (grep -E "error:|warning:|Upload|EXPORT" || true)
-          echo "Uploaded $BUNDLE_ID version ${{ github.event.inputs.marketing_version }} build ${{ github.run_number }}"
+          echo "Uploaded $BUNDLE_ID version $VERSION build $BUILD"
         env:
           APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
           APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
