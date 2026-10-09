@@ -45,3 +45,33 @@ unlock.
   `SKStoreReviewController` (not yet in the app).
 
 Re-run the workflow before each release; rankings move.
+
+## 2.3: positioning as an AI nutrition coach and assistant
+
+Research for "ai" terms, October 2026 (same method as above):
+
+| Term | Top-10 ratings | Median | Naming it |
+| --- | ---: | ---: | ---: |
+| ai assistant | 16.2M | 276,222 | 3/10 |
+| ai nutrition | 2.4M | 1,382 | 5/10 |
+| ai coach | 2.0M | 2,605 | 5/10 |
+| ai protein tracker | 533k | 95 | 5/10 |
+| ai food log | 484k | 7,396 | 1/10 |
+| ai diet coach | 459k | 6,411 | 1/10 |
+| ai health coach | 439k | 2,570 | 4/10 |
+| ai nutrition coach | 433k | 44 | 6/10 |
+| ai diet assistant | 277k | 4,212 | 0/10 |
+| ai health assistant | 276k | 7 | 4/10 |
+| ai nutrition assistant | 210k | 1,492 | 3/10 |
+| ai supplement tracker | 140k | 1 | 5/10 |
+| ai food diary | 44k | 800 | 4/10 |
+
+"ai assistant" alone belongs to the general chatbots. Everything nutrition- or health-specific
+has small competitors, so 2.3 renames the store listing:
+
+- Name: `Fuelprint: AI Nutrition Coach`
+- Subtitle: `Food & Supplement Assistant`
+- Keywords: `tracker,protein,health,diet,calorie,meal,log,diary,vitamin,creatine,voice,scanner,label,gut,glp`
+
+"Dietitian" and "nutritionist" score well but are left out: Fuelprint is neither, and both are
+protected professional titles.

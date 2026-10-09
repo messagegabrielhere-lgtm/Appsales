@@ -20,6 +20,7 @@ TODAY = datetime.date.today().isoformat()
 
 # Every guide, in the order the lists show them: (slug, link text).
 ALL = [
+    ("ai-nutrition-coach", "An AI nutrition coach that uses your own data"),
     ("ai-food-diary", "How to use AI as your food diary"),
     ("voice-food-diary", "Voice food diary: log what you eat by talking"),
     ("nutrition-label-scanner", "Nutrition label scanner: log a label from a photo"),
@@ -32,6 +33,25 @@ ALL = [
 ]
 
 NEW_GUIDES = {
+    "ai-nutrition-coach": {
+        "title": "AI Nutrition Coach for iPhone: Ask AI About Your Own Food Log",
+        "description": "An AI nutrition coach is only as good as what it knows about you. Log food, drinks and supplements in seconds, then ask AI for calories, protein, patterns and plans based on your own data.",
+        "h1": "An AI nutrition coach that uses your own data",
+        "body": """
+<p>General AI assistants give general answers. Ask "how much protein should I eat?" and you get a range for everyone. Ask with two weeks of what you actually ate, your weight and your goal, and you get an answer about you.</p>
+<h2>What makes an AI coach useful</h2>
+<ul>
+<li><strong>Your real log,</strong> with times: meals, drinks, supplements, workouts, sleep and how you felt.</li>
+<li><strong>Your profile:</strong> age, height, weight, activity, goals, diet and medications.</li>
+<li><strong>A focused question:</strong> protein, a weekly review, gut health, energy, a meal plan for tomorrow.</li>
+<li><strong>Numbers you can track,</strong> so the next answer can say whether things improved.</li>
+<li><strong>Your choice of AI,</strong> including one that runs privately on your phone.</li>
+</ul>
+<h2>On iPhone</h2>
+<p><a href="../../../">Fuelprint</a> is an AI nutrition coach and food &amp; supplement assistant. Log by voice, text or a label photo, pick one of fifteen questions, and get an answer from Apple Intelligence on your iPhone, or send it to Grok, ChatGPT, Claude or Gemini. Daily calories, protein and fiber from the answer can be charted in Trends.</p>
+<p class="muted">AI answers can be wrong and are not medical advice. Talk to a doctor or dietitian before changing your diet, supplements or medication.</p>
+""",
+    },
     "voice-food-diary": {
         "title": "Voice Food Diary: Log What You Eat by Talking (iPhone)",
         "description": "Keep a food diary by speaking. Say what you ate and drank, and it's split into entries on your iPhone, then ask AI for calories, protein and patterns.",
