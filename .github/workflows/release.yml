@@ -77,13 +77,31 @@ jobs:
 
       - name: Install App Store Connect API key
         run: |
-          # Accept the .p8 pasted as-is or base64-encoded.
-          if printf '%s' "$APP_STORE_CONNECT_API_KEY_P8" | grep -q "BEGIN PRIVATE KEY"; then
-            printf '%s\n' "$APP_STORE_CONNECT_API_KEY_P8" > "$API_KEY_PATH"
-          else
-            printf '%s' "$APP_STORE_CONNECT_API_KEY_P8" | base64 --decode > "$API_KEY_PATH"
-          fi
+          # Accept the .p8 however it was pasted: as-is, base64-encoded, on one line,
+          # with literal \n, with CRLF, or as the bare key body. The key is never printed.
+          python3 - <<'PY'
+          import base64, os, re, textwrap
+          raw = os.environ["APP_STORE_CONNECT_API_KEY_P8"].strip().strip('"').strip("'")
+          raw = raw.replace("\\n", "\n").replace("\r", "")
+          if "BEGIN" not in raw:
+              try:
+                  decoded = base64.b64decode(re.sub(r"\s+", "", raw), validate=True).decode("utf-8", "strict")
+                  if "BEGIN" in decoded:
+                      raw = decoded
+              except Exception:
+                  pass
+          match = re.search(r"-----BEGIN [A-Z ]*PRIVATE KEY-----(.*?)-----END [A-Z ]*PRIVATE KEY-----", raw, re.S)
+          body = re.sub(r"\s+", "", match.group(1) if match else raw)
+          pem = "-----BEGIN PRIVATE KEY-----\n" + "\n".join(textwrap.wrap(body, 64)) + "\n-----END PRIVATE KEY-----\n"
+          with open(os.environ["API_KEY_PATH"], "w") as f:
+              f.write(pem)
+          PY
           chmod 600 "$API_KEY_PATH"
+          if ! openssl pkey -in "$API_KEY_PATH" -noout 2>/dev/null; then
+            echo "::error::APP_STORE_CONNECT_API_KEY_P8 isn't a valid App Store Connect .p8 key. Paste the full contents of AuthKey_<KEYID>.p8 into the secret again (see docs/RELEASE.md)."
+            exit 1
+          fi
+          echo "API key installed and valid"
         env:
           APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
 
