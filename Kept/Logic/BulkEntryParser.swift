@@ -17,6 +17,9 @@ enum BulkEntryParser {
         var minutes: Int?
         /// A checklist item this line refers to, ticked when the list is added.
         var habitID: UUID?
+        /// "8am coffee", "2:30 pm walk", "8:15 coffee": minutes after midnight. Nil when the
+        /// line has no time, and the entry is logged without one.
+        var minuteOfDay: Int? = nil
     }
 
     struct Day: Equatable, Identifiable {
@@ -134,6 +137,7 @@ enum BulkEntryParser {
         let (text, forced) = explicitKind(line)
         var item = Item(id: id, text: text, kind: .food)
         let lower = text.lowercased()
+        item.minuteOfDay = timeOfDay(in: lower)
         if let habit = habits.first(where: { habit in
             let name = habit.name.trimmingCharacters(in: .whitespaces).lowercased()
             guard name.count >= 3 else { return false }
@@ -309,6 +313,27 @@ enum BulkEntryParser {
         "glasses", "bottle", "pint", "pints", "cocoa",
     ]
     private static let drinkPhrases = ["cold brew", "body armor", "red bull", "la croix", "hot chocolate", "dr pepper"]
+
+    // MARK: Times
+
+    /// "8am", "2:30 pm", "at 7 p.m.", or a 24-hour "8:15" or "19:30" at the start of a line.
+    static func timeOfDay(in lower: String) -> Int? {
+        let twelveHour = #"(?:^|[\s@(])(\d{1,2})(?::([0-5]\d))?\s*(am|pm|a\.m\.|p\.m\.)(?=$|[\s,.;)-])"#
+        if let regex = try? NSRegularExpression(pattern: twelveHour),
+           let match = regex.firstMatch(in: lower, range: NSRange(lower.startIndex..., in: lower)),
+           let hourRange = Range(match.range(at: 1), in: lower),
+           let hour = Int(lower[hourRange]), (1...12).contains(hour),
+           let suffixRange = Range(match.range(at: 3), in: lower) {
+            let minute = Range(match.range(at: 2), in: lower).flatMap { Int(lower[$0]) } ?? 0
+            let pm = lower[suffixRange].hasPrefix("p")
+            return ((hour % 12) + (pm ? 12 : 0)) * 60 + minute
+        }
+        if let match = lower.range(of: #"^([01]?\d|2[0-3]):([0-5]\d)\b"#, options: .regularExpression) {
+            let parts = lower[match].split(separator: ":").compactMap { Int($0) }
+            if parts.count == 2 { return parts[0] * 60 + parts[1] }
+        }
+        return nil
+    }
 
     // MARK: Amounts
 

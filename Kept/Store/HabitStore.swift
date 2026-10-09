@@ -116,15 +116,26 @@ final class HabitStore: ObservableObject {
         for parsed in days {
             var index = entries(on: parsed.day).filter(\.untimed).count
             for item in parsed.items {
-                added.append(LogEntry(
-                    kind: item.kind,
-                    date: LogEntry.untimedDate(on: parsed.day, index: index),
-                    text: item.text,
-                    milliliters: item.kind == .drink ? item.milliliters : nil,
-                    minutes: item.kind == .activity ? item.minutes : nil,
-                    untimed: true
-                ))
-                index += 1
+                if let minute = item.minuteOfDay {
+                    let start = Calendar.current.startOfDay(for: parsed.day.date())
+                    added.append(LogEntry(
+                        kind: item.kind,
+                        date: start.addingTimeInterval(TimeInterval(minute * 60)),
+                        text: item.text,
+                        milliliters: item.kind == .drink ? item.milliliters : nil,
+                        minutes: item.kind == .activity ? item.minutes : nil
+                    ))
+                } else {
+                    added.append(LogEntry(
+                        kind: item.kind,
+                        date: LogEntry.untimedDate(on: parsed.day, index: index),
+                        text: item.text,
+                        milliliters: item.kind == .drink ? item.milliliters : nil,
+                        minutes: item.kind == .activity ? item.minutes : nil,
+                        untimed: true
+                    ))
+                    index += 1
+                }
                 if tickChecklist, let id = item.habitID,
                    let habitIndex = habits.firstIndex(where: { $0.id == id }),
                    !habits[habitIndex].isCompleted(on: parsed.day) {

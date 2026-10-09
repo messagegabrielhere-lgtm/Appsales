@@ -59,6 +59,8 @@ struct LabelScanView: View {
                 Text("The photo is read on this iPhone and isn't saved or sent anywhere.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
                     .padding(.bottom)
             }
             .navigationTitle("Scan a Label")

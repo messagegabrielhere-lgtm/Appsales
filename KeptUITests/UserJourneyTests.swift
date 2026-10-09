@@ -42,17 +42,19 @@ final class UserJourneyTests: XCTestCase {
         felt tired 3/5
         water 2 glasses
         """)
+        // The simulator's first-keyboard tip covers the screen.
+        if app.buttons["Continue"].exists { app.buttons["Continue"].tap() }
+        let add = app.navigationBars.buttons["Add 8"]
+        XCTAssertTrue(add.waitForExistence(timeout: 5), "Eight typed lines should be eight entries")
         snap("type-a-list-preview")
-
-        let add = app.navigationBars.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Add'")).firstMatch
-        XCTAssertTrue(add.waitForExistence(timeout: 3))
-        XCTAssertNotEqual(add.label, "Add", "The list should turn into entries before adding")
         add.tap()
-        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS[c] 'chicken salad'")).firstMatch.waitForExistence(timeout: 5),
-                      "Typed lines should appear on Today")
         snap("today-after-list")
+        XCTAssertTrue(app.staticTexts["500 ml"].exists || app.staticTexts.containing(NSPredicate(format: "label CONTAINS '16.9' OR label CONTAINS '17 fl oz' OR label CONTAINS '500'")).firstMatch.exists,
+                      "Two glasses of water should fill the Water card")
 
         app.swipeUp()
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS[c] 'chicken salad'")).firstMatch.waitForExistence(timeout: 5),
+                      "Typed lines should appear on Today")
         snap("today-scrolled")
 
         // Speak and Scan open their own screens; look and back out.

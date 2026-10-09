@@ -267,4 +267,11 @@ final class BulkEntryParserTests: XCTestCase {
         XCTAssertNil(items[0].habitID)
         XCTAssertEqual(items[1].habitID, tea.id)
     }
+
+    func testTimesInLines() {
+        let items = parse("8am coffee with milk\n2:30 pm walk 30 min\n19:45 dinner\nlunch at 12pm\nfelt tired 3/5\n5g creatine").days[0].items
+        XCTAssertEqual(items.map(\.minuteOfDay), [480, 870, 1185, 720, nil, nil])
+        XCTAssertEqual(BulkEntryParser.timeOfDay(in: "12am snack"), 0)
+        XCTAssertNil(BulkEntryParser.timeOfDay(in: "13pm"))
+    }
 }

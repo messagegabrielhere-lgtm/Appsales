@@ -173,10 +173,13 @@ struct BulkEntryView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(count == 0 ? "Add" : "Add \(count)") {
-                        add(resolved.days, preamble: parsed.preamble)
+                        // Read the text as it is now: the preview catches up a moment after
+                        // typing, and a quick tap must not add a list missing its last lines.
+                        let current = parse(text)
+                        add(resolve(current).days, preamble: current.preamble)
                     }
                     .fontWeight(.semibold)
-                    .disabled(count == 0)
+                    .disabled(count == 0 && text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()

@@ -348,7 +348,7 @@ private struct AskAICard: View {
                 Text("Ask AI about your log")
                     .font(.headline)
             }
-            Text("Nutrition, protein, energy, sleep, gut health and more. Sends to ChatGPT, Claude, Gemini or any assistant.")
+            Text("Nutrition, protein, energy, sleep, gut health and more. Sends to ChatGPT, Grok, Claude, Gemini or any AI app.")
                 .font(.subheadline)
                 .opacity(0.9)
             HStack(spacing: 8) {
