@@ -40,6 +40,8 @@ targets:
         ITSAppUsesNonExemptEncryption: false
         NSCameraUsageDescription: Fuelprint uses the camera only when you scan a nutrition or supplement label. The photo is read on this iPhone and isn't saved or sent.
         NSMicrophoneUsageDescription: Fuelprint listens when you tap the microphone so you can log your day by voice. Audio stays on this iPhone.
+        # Required with the HealthKit entitlement even though Fuelprint never writes to Health.
+        NSHealthUpdateUsageDescription: Fuelprint never writes to Apple Health. It only reads steps, workouts, sleep, weight and resting heart rate when you include Apple Health in an AI prompt.
         NSHealthShareUsageDescription: Fuelprint reads steps, workouts, sleep, weight and resting heart rate only when you include Apple Health in an AI prompt. It never writes to Health or sends this data anywhere itself.
         NSSpeechRecognitionUsageDescription: Fuelprint turns what you say into log entries on this iPhone. Nothing is sent anywhere.
         UILaunchScreen: {}
