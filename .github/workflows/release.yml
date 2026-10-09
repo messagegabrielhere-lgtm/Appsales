@@ -138,6 +138,14 @@ jobs:
 
       - name: Archive
         run: |
+          # A signed archive needs a development profile, which needs a registered device
+          # that a CI runner doesn't have. Without a stored certificate, archive unsigned
+          # and let the export step sign for the App Store (as scripts/release.sh does).
+          if [ "$HAS_DIST_CERT" = "true" ]; then
+            SIGNING="CODE_SIGN_STYLE=Automatic"
+          else
+            SIGNING="CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO"
+          fi
           set -o pipefail
           xcodebuild archive \
             -project Kept.xcodeproj \
@@ -152,7 +160,7 @@ jobs:
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             MARKETING_VERSION="$VERSION" \
             CURRENT_PROJECT_VERSION="$BUILD" \
-            CODE_SIGN_STYLE=Automatic \
+            $SIGNING \
                       | tee archive.log \
             | (grep -E "error:|warning:|\*\* (ARCHIVE|BUILD)" || true)
         env:
