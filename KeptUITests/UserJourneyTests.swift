@@ -123,7 +123,7 @@ final class UserJourneyTests: XCTestCase {
         // How Grok, ChatGPT and Claude actually format the numbers block.
         UIPasteboard.general.string = Self.grokStyleAnswer
         let paste = app.buttons["Paste"].firstMatch
-        for _ in 0..<6 where !paste.isHittable { app.swipeUp() }
+        for _ in 0..<12 where !paste.isHittable { app.collectionViews.firstMatch.swipeUp(velocity: .slow) }
         XCTAssertTrue(paste.isHittable, "Step 4 should have a Paste button")
         paste.tap()
         let saved = app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH 'Saved estimates'")).firstMatch

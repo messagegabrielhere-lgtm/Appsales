@@ -408,6 +408,38 @@ def update_review_details(client, version, previous, notes):
     print("App Review notes set; sign-in not required")
 
 
+def ensure_extra_localization(client, app_id, version, previous, locale, fields):
+    """Adds or updates a second-language listing (name, subtitle, description, keywords,
+    promotional text, What's New). Screenshots come from the primary language."""
+    infos = client.get_all(f"/v1/apps/{app_id}/appInfos")
+    editable = [i for i in infos
+                if (i["attributes"].get("state") or i["attributes"].get("appStoreState")) not in LIVE]
+    info = (editable or infos)[0]
+    info_text = {"name": fields["Name"], "subtitle": fields.get("Subtitle"),
+                 "privacyPolicyUrl": fields.get("Privacy Policy URL")}
+    info_text = {k: v for k, v in info_text.items() if v}
+    existing = next((l for l in client.get_all(f"/v1/appInfos/{info['id']}/appInfoLocalizations")
+                     if l["attributes"]["locale"] == locale), None)
+    if existing:
+        client.update("appInfoLocalizations", existing["id"], info_text)
+    else:
+        client.create("appInfoLocalizations", {**info_text, "locale": locale}, {"appInfo": ("appInfos", info["id"])})
+
+    text = {"description": fields["Description"], "keywords": fields["Keywords"],
+            "promotionalText": fields.get("Promotional text"), "supportUrl": fields.get("Support URL")}
+    if previous and "What's New" in fields:
+        text["whatsNew"] = fields["What's New"]
+    text = {k: v for k, v in text.items() if v}
+    existing = next((l for l in client.get_all(f"/v1/appStoreVersions/{version['id']}/appStoreVersionLocalizations")
+                     if l["attributes"]["locale"] == locale), None)
+    if existing:
+        client.update("appStoreVersionLocalizations", existing["id"], text)
+    else:
+        client.create("appStoreVersionLocalizations", {**text, "locale": locale},
+                      {"appStoreVersion": ("appStoreVersions", version["id"])})
+    print(f"{locale}: {fields['Name']} / {fields.get('Subtitle')} (keywords {len(fields['Keywords'])} characters)")
+
+
 def set_release_type(client, version, release):
     """"Manual" holds an approved version until it's released (scripts/app_store_release.py);
     anything else, or no Release section, goes live as soon as Apple approves it."""
@@ -566,6 +598,8 @@ def main(argv=None, client=None):
     parser.add_argument("--build-wait", type=int, default=1800, help="Seconds to wait for build processing")
     parser.add_argument("--submit", action="store_true", help="Submit for App Review at the end")
     parser.add_argument("--iap-screenshot", help="Review screenshot of the in-app purchase screen")
+    parser.add_argument("--extra-listing", action="append", default=[],
+                        help="Another language's listing as LOCALE=PATH, e.g. es-MX=docs/listing/v2.3.es-MX.md")
     args = parser.parse_args(argv)
 
     try:
@@ -588,6 +622,13 @@ def main(argv=None, client=None):
 
         step("Version text")
         localization = update_version_text(client, version, previous, locale, fields)
+
+        for extra in args.extra_listing:
+            extra_locale, _, extra_path = extra.partition("=")
+            step(f"Listing in {extra_locale}")
+            extra_fields = parse_listing(extra_path)
+            require(extra_fields, "Name", "Description", "Keywords")
+            ensure_extra_localization(client, app["id"], version, previous, extra_locale, extra_fields)
 
         if args.screenshots:
             step("Screenshots")

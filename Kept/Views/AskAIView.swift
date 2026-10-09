@@ -374,6 +374,10 @@ struct SendToAISheet: View {
     let title: String
     @State private var copied = false
     @State private var opened: AIAssistant?
+    @State private var savedMessage: String?
+
+    /// Nutrition questions end by asking for the daily numbers block.
+    private var asksForNumbers: Bool { prompt.contains(EstimateParser.marker) }
 
     private var isLong: Bool { prompt.count > AskAIView.longPrompt }
 
@@ -397,6 +401,21 @@ struct SendToAISheet: View {
                             open(opened)
                         } label: {
                             Label("Copy and Open \(opened.name) Again", systemImage: "arrow.clockwise")
+                        }
+                    }
+
+                    if asksForNumbers {
+                        Section {
+                            SaveAnswerButton(message: $savedMessage)
+                            if let savedMessage {
+                                Text(savedMessage)
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
+                        } header: {
+                            Text("Got \(opened.name)'s answer?")
+                        } footer: {
+                            Text("Copy the whole answer in \(opened.name), come back and tap Paste to chart its daily numbers in Trends.")
                         }
                     }
                 }

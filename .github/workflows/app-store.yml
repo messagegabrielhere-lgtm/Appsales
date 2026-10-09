@@ -83,4 +83,11 @@ jobs:
           [ "${{ inputs.submit }}" = "true" ] && args+=(--submit)
           shot=$(ls journeys/test5_FreeUserMeetsTheUnlock-*-unlock.png 2>/dev/null | head -1 || true)
           [ -n "$shot" ] && args+=(--iap-screenshot "$shot")
+          # docs/listing/v2.3.es-MX.md and the like: other languages for the same version.
+          base="${{ inputs.listing }}"; base="${base%.md}"
+          for extra in "$base".*.md; do
+            [ -e "$extra" ] || continue
+            loc=$(basename "$extra" .md); loc=${loc##*.}
+            args+=(--extra-listing "$loc=$extra")
+          done
           python3 scripts/app_store_connect.py "${args[@]}"
