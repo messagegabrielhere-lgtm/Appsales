@@ -36,7 +36,9 @@ struct AskAIView: View {
             habits: store.habits,
             log: store.log,
             aboutMe: include ? store.settings.aboutMe : nil,
-            profile: include ? store.settings.profile : nil
+            profile: include ? store.settings.profile : nil,
+            health: store.settings.includeHealth ? healthDays : [:],
+            usesPounds: Locale.current.measurementSystem == .us
         ))
     }
 
@@ -98,7 +100,7 @@ struct AskAIView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("\(entryCount == 1 ? "1 entry" : "\(entryCount.formatted()) entries") · about \(text.count.formatted()) characters")
                     if text.count > Self.longPrompt {
-                        Text("That's a long prompt. If your assistant says it's too long, use Share as File in the next step and attach it instead.")
+                        Text("That's a long prompt, so Send to an AI App sends it as a text file the assistant can read.")
                     }
                 }
             }
@@ -324,16 +326,53 @@ private struct SendBar: View {
 }
 
 /// Step 4: where the prompt goes. Every option copies it first, so it can always be pasted.
+/// Assistant apps (Grok, ChatGPT and others) often open on an empty chat even when their web
+/// address carries the prompt, so the share sheet, which hands the text straight to the app,
+/// comes first and the sheet stays open after opening one with how to paste.
 struct SendToAISheet: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.dismiss) private var dismiss
     let prompt: String
     let title: String
     @State private var copied = false
+    @State private var opened: AIAssistant?
+
+    private var isLong: Bool { prompt.count > AskAIView.longPrompt }
 
     var body: some View {
         NavigationStack {
             List {
+                if let opened {
+                    Section {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Label("Your prompt is copied", systemImage: "checkmark.circle.fill")
+                                .font(.headline)
+                                .foregroundStyle(.green)
+                            Text("If \(opened.name) opened on an empty chat, tap its message box, choose Paste, then send.")
+                            Text("Still nothing? Use Send to an AI App below and pick \(opened.name).")
+                                .foregroundStyle(.secondary)
+                        }
+                        .font(.subheadline)
+                        .padding(.vertical, 4)
+                        Button {
+                            copy()
+                            open(opened)
+                        } label: {
+                            Label("Copy and Open \(opened.name) Again", systemImage: "arrow.clockwise")
+                        }
+                    }
+                }
+
+                Section {
+                    shareToApp
+                } header: {
+                    Text("Best for AI apps")
+                } footer: {
+                    Text(isLong
+                         ? "Your prompt is long, so it's sent as a text file. Pick Grok, ChatGPT, Claude, Gemini or another AI app in the list and send."
+                         : "Pick Grok, ChatGPT, Claude, Gemini or another AI app in the list. The whole prompt arrives in its message box.")
+                }
+
                 if OnDeviceAI.status != .unsupported {
                     Section {
                         OnDeviceAIRow(prompt: prompt, title: title)
@@ -346,23 +385,16 @@ struct SendToAISheet: View {
 
                 Section {
                     ForEach(AIAssistant.allCases) { assistant in
-                        let destination = assistant.destination(for: prompt)
                         Button {
-                            UIPasteboard.general.string = prompt
-                            Haptics.success()
-                            openURL(destination.url)
-                            dismiss()
+                            copy()
+                            open(assistant)
                         } label: {
                             HStack(spacing: 14) {
-                                Image(systemName: assistant.symbol)
-                                    .font(.body.weight(.semibold))
-                                    .foregroundStyle(.white)
-                                    .frame(width: 34, height: 34)
-                                    .background(Color.accentColor.gradient, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                                AssistantIcon(symbol: assistant.symbol)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(assistant.name)
                                         .foregroundStyle(.primary)
-                                    Text(destination.prefilled ? "Opens with your prompt filled in" : "Opens, then paste your prompt")
+                                    Text("Copies your prompt, then opens \(assistant.name)")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
@@ -371,32 +403,31 @@ struct SendToAISheet: View {
                                     .foregroundStyle(.secondary)
                             }
                         }
+                        .accessibilityHint("Copies your prompt and opens \(assistant.name). Paste it if the chat is empty.")
                     }
                 } header: {
-                    Text("Open in")
+                    Text("Open and paste")
                 } footer: {
-                    Text("Your prompt is copied every time. If the assistant opens empty, tap its message box and paste.")
+                    Text("Websites usually open with the prompt typed in. Apps often open empty: tap the message box and Paste.")
                 }
 
                 Section {
                     Button {
-                        UIPasteboard.general.string = prompt
-                        Haptics.success()
+                        copy()
                         withAnimation { copied = true }
                     } label: {
                         Label(copied ? "Copied" : "Copy Prompt", systemImage: copied ? "checkmark" : "doc.on.doc")
                     }
-                    ShareLink(item: prompt) {
-                        Label("Share to Another App", systemImage: "square.and.arrow.up")
-                    }
-                    ShareLink(
-                        item: PromptDocument(text: prompt),
-                        preview: SharePreview("\(Brand.name) prompt", image: Image(systemName: "doc.text"))
-                    ) {
-                        Label("Share as File", systemImage: "doc.text")
+                    if !isLong {
+                        ShareLink(
+                            item: PromptDocument(text: prompt),
+                            preview: SharePreview("\(Brand.name) prompt", image: Image(systemName: "doc.text"))
+                        ) {
+                            Label("Share as File", systemImage: "doc.text")
+                        }
                     }
                 } footer: {
-                    Text("For long periods, Share as File and attach it in your assistant's app. \(Brand.name) is not affiliated with these companies. Each service's own privacy policy applies to what you send it.")
+                    Text("\(Brand.name) is not affiliated with these companies. Each service's own privacy policy applies to what you send it.")
                 }
             }
             .navigationTitle("Send to AI")
@@ -407,6 +438,50 @@ struct SendToAISheet: View {
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    private var shareToApp: some View {
+        let label = HStack(spacing: 14) {
+            AssistantIcon(symbol: "square.and.arrow.up")
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Send to an AI App")
+                    .foregroundStyle(.primary)
+                Text("Grok, ChatGPT, Claude, Gemini…")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        if isLong {
+            ShareLink(
+                item: PromptDocument(text: prompt),
+                preview: SharePreview("\(Brand.name) prompt", image: Image(systemName: "doc.text"))
+            ) { label }
+        } else {
+            ShareLink(item: prompt, preview: SharePreview(title)) { label }
+        }
+    }
+
+    private func copy() {
+        UIPasteboard.general.string = prompt
+        Haptics.success()
+    }
+
+    private func open(_ assistant: AIAssistant) {
+        withAnimation { opened = assistant }
+        openURL(assistant.destination(for: prompt).url)
+    }
+}
+
+private struct AssistantIcon: View {
+    let symbol: String
+
+    var body: some View {
+        Image(systemName: symbol)
+            .font(.body.weight(.semibold))
+            .foregroundStyle(.white)
+            .frame(width: 34, height: 34)
+            .background(Color.accentColor.gradient, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
     }
 }
 

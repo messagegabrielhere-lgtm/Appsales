@@ -1,0 +1,80 @@
+name: User journeys
+
+# Drives the real app in the iOS Simulator the way a person uses it (first launch, typing a
+# day, Ask AI, sending to Grok, pasting the answer back, Trends, Settings) and publishes a
+# screenshot of every step to the `journeys` branch so each screen can be looked at.
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "Kept/**"
+      - "KeptUITests/**"
+      - "project.yml"
+      - ".github/workflows/user-journeys.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: journeys-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  journeys:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use the newest stable Xcode
+        run: |
+          newest=$(ls -d /Applications/Xcode_*.app | grep -viE "beta|release_candidate|_rc" | sort -V | tail -1)
+          sudo xcode-select -s "$newest/Contents/Developer"
+          xcodebuild -version
+
+      - name: Generate Xcode project
+        run: brew install xcodegen && xcodegen generate
+
+      - name: Pick an iPhone simulator
+        id: sim
+        run: |
+          UDID=$(xcrun simctl list devices available | grep -E "iPhone 1[6-9] Pro|iPhone [2-9][0-9] Pro|iPhone 1[5-9]|iPhone [2-9][0-9]" | head -1 | grep -oE "[0-9A-F-]{36}")
+          echo "Using simulator $UDID"
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl privacy "$UDID" grant all com.messagegabrielhere.kept || true
+
+      - name: Run the journeys
+        env:
+          TEST_RUNNER_JOURNEY_DIR: ${{ runner.temp }}/journeys
+        run: |
+          set -o pipefail
+          mkdir -p "$TEST_RUNNER_JOURNEY_DIR"
+          xcodebuild test \
+            -project Kept.xcodeproj \
+            -scheme Kept \
+            -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
+            -only-testing:KeptUITests \
+            -resultBundlePath Journeys.xcresult \
+            CODE_SIGNING_ALLOWED=NO \
+            | tee journeys.log \
+            | (grep -E "error:|XCTAssert|Test Case|Executed|\*\* (BUILD|TEST)" || true)
+
+      - name: Publish screenshots to the journeys branch
+        if: always()
+        run: |
+          set -e
+          SHOTS="${{ runner.temp }}/journeys"
+          ls "$SHOTS" || exit 0
+          cp journeys.log "$SHOTS/" || true
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan journeys
+          git rm -rfq .
+          git clean -fdxq -e journeys.log
+          cp -R "$SHOTS/." .
+          echo "User journey screenshots from $GITHUB_SHA" > README.md
+          git add -A
+          git commit -qm "Journeys from $GITHUB_SHA"
+          git push --force origin journeys

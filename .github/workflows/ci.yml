@@ -58,6 +58,7 @@ jobs:
             -project Kept.xcodeproj \
             -scheme Kept \
             -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
+            -only-testing:KeptTests \
             -resultBundlePath TestResults.xcresult \
             CODE_SIGNING_ALLOWED=NO \
             | tee build.log \
