@@ -24,6 +24,10 @@ on:
         description: "Submit for App Review when done"
         type: boolean
         default: false
+      withdraw_first:
+        description: "Withdraw the version from review first (to resubmit it with the in-app purchase)"
+        type: boolean
+        default: false
       iap_only:
         description: "Only the in-app purchase (leave the version, e.g. while it's in review)"
         type: boolean
@@ -86,6 +90,7 @@ jobs:
           [ -n "${{ inputs.build }}" ] && args+=(--build "${{ inputs.build }}")
           [ "${{ inputs.submit }}" = "true" ] && args+=(--submit)
           [ "${{ inputs.iap_only }}" = "true" ] && args+=(--iap-only)
+          [ "${{ inputs.withdraw_first }}" = "true" ] && args+=(--withdraw-first)
           shot=$(ls journeys/test5_FreeUserMeetsTheUnlock-*-unlock.png 2>/dev/null | head -1 || true)
           [ -n "$shot" ] && args+=(--iap-screenshot "$shot")
           # docs/listing/v2.3.es-MX.md and the like: other languages for the same version.

@@ -563,7 +563,27 @@ def submit_in_app_purchase(client, iap_id):
     print("In-app purchase submitted with this version")
 
 
-def submit(client, app_id, version):
+def withdraw_from_review(client, app_id, version):
+    """Cancels the open review submission so the version can be resubmitted, for example
+    together with a first in-app purchase. Waits until the version is editable again."""
+    submissions = client.get_all("/v1/reviewSubmissions", **{
+        "filter[app]": app_id, "filter[platform]": "IOS", "filter[state]": "WAITING_FOR_REVIEW,IN_REVIEW,UNRESOLVED_ISSUES"})
+    if not submissions:
+        print("Nothing in review to withdraw")
+        return
+    for submission in submissions:
+        client.update("reviewSubmissions", submission["id"], {"canceled": True})
+        print(f"Withdrew review submission {submission['id']} ({submission['attributes'].get('state')})")
+    for _ in range(40):
+        state = version_state(client.get(f"/v1/appStoreVersions/{version['id']}")["data"])
+        if state in EDITABLE:
+            print(f"Version is {state} again")
+            return
+        time.sleep(15)
+    raise Failure("The version didn't become editable after withdrawing it; check App Store Connect")
+
+
+def submit(client, app_id, version, iap_id=None):
     current = client.get(f"/v1/appStoreVersions/{version['id']}")["data"]
     state = version_state(current)
     if state not in EDITABLE:
@@ -581,6 +601,15 @@ def submit(client, app_id, version):
         client.create("reviewSubmissionItems", relationships={
             "reviewSubmission": ("reviewSubmissions", submission["id"]),
             "appStoreVersion": ("appStoreVersions", version["id"])})
+    if iap_id:
+        # A first in-app purchase has to go in with the version, so it's submitted while the
+        # version's submission is open, before that submission is sent.
+        try:
+            submit_in_app_purchase(client, iap_id)
+        except Failure as error:
+            raise Failure(f"{error}\n\nThe version is ready but NOT submitted, so it isn't reviewed without its "
+                          "purchase. In App Store Connect, open the version, add Fuelprint Unlock under In-App "
+                          "Purchases and Subscriptions, and press Add for Review.") from error
     client.update("reviewSubmissions", submission["id"], {"submitted": True})
     print("Submitted for App Review")
 
@@ -598,6 +627,8 @@ def main(argv=None, client=None):
     parser.add_argument("--build-wait", type=int, default=1800, help="Seconds to wait for build processing")
     parser.add_argument("--submit", action="store_true", help="Submit for App Review at the end")
     parser.add_argument("--iap-screenshot", help="Review screenshot of the in-app purchase screen")
+    parser.add_argument("--withdraw-first", action="store_true",
+                        help="Withdraw the version from review before publishing (to resubmit it with the in-app purchase)")
     parser.add_argument("--iap-only", action="store_true",
                         help="Only create, update and (with --submit) submit the in-app purchase; leave the version alone")
     parser.add_argument("--extra-listing", action="append", default=[],
@@ -627,6 +658,10 @@ def main(argv=None, client=None):
 
         step(f"Preparing version {args.version}")
         version, previous = ensure_version(client, app["id"], args.version)
+        if args.withdraw_first:
+            step("Withdrawing from review")
+            withdraw_from_review(client, app["id"], version)
+            version = client.get(f"/v1/appStoreVersions/{version['id']}")["data"]
 
         step("App Information: name, subtitle, categories")
         update_app_info(client, app["id"], locale, fields)
@@ -661,9 +696,7 @@ def main(argv=None, client=None):
 
         if args.submit:
             step("Submitting for review")
-            if iap_id:
-                submit_in_app_purchase(client, iap_id)
-            submit(client, app["id"], version)
+            submit(client, app["id"], version, iap_id)
         else:
             step("Ready. Not submitted: run again with submit enabled, or press Add for Review in App Store Connect.")
     except Failure as error:
