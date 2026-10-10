@@ -24,6 +24,10 @@ on:
         description: "Submit for App Review when done"
         type: boolean
         default: false
+      iap_only:
+        description: "Only the in-app purchase (leave the version, e.g. while it's in review)"
+        type: boolean
+        default: false
 
 concurrency:
   group: app-store
@@ -81,6 +85,7 @@ jobs:
           args=(--version "${{ inputs.version }}" --listing "${{ inputs.listing }}" --screenshots screenshots/marketing)
           [ -n "${{ inputs.build }}" ] && args+=(--build "${{ inputs.build }}")
           [ "${{ inputs.submit }}" = "true" ] && args+=(--submit)
+          [ "${{ inputs.iap_only }}" = "true" ] && args+=(--iap-only)
           shot=$(ls journeys/test5_FreeUserMeetsTheUnlock-*-unlock.png 2>/dev/null | head -1 || true)
           [ -n "$shot" ] && args+=(--iap-screenshot "$shot")
           # docs/listing/v2.3.es-MX.md and the like: other languages for the same version.

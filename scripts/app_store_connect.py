@@ -598,6 +598,8 @@ def main(argv=None, client=None):
     parser.add_argument("--build-wait", type=int, default=1800, help="Seconds to wait for build processing")
     parser.add_argument("--submit", action="store_true", help="Submit for App Review at the end")
     parser.add_argument("--iap-screenshot", help="Review screenshot of the in-app purchase screen")
+    parser.add_argument("--iap-only", action="store_true",
+                        help="Only create, update and (with --submit) submit the in-app purchase; leave the version alone")
     parser.add_argument("--extra-listing", action="append", default=[],
                         help="Another language's listing as LOCALE=PATH, e.g. es-MX=docs/listing/v2.3.es-MX.md")
     args = parser.parse_args(argv)
@@ -613,6 +615,15 @@ def main(argv=None, client=None):
         step("Finding the app")
         app = find_app(client, args.bundle_id)
         locale = app["attributes"]["primaryLocale"]
+
+        if args.iap_only:
+            require(fields, "In-app purchase")
+            step("In-app purchase")
+            iap_id = ensure_in_app_purchase(client, app["id"], fields["In-app purchase"], args.iap_screenshot)
+            if args.submit:
+                step("Submitting the in-app purchase")
+                submit_in_app_purchase(client, iap_id)
+            return 0
 
         step(f"Preparing version {args.version}")
         version, previous = ensure_version(client, app["id"], args.version)
