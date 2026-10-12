@@ -17,7 +17,7 @@ CAPTIONS = [
     ("today", "Your AI nutrition coach.", "Speak, type or scan your day."),
     ("paste", "Type your day like a note.", "Or paste a whole month at once."),
     ("ai", "Ask AI about your own data.", "Protein, weight, sleep, gut health and more."),
-    ("send", "Grok, ChatGPT, Claude or Gemini.", "Or answered privately on your iPhone."),
+    ("send", "Send to your favorite AI app.", "Or get an answer privately on your iPhone."),
     ("log", "Type it the way you'd say it.", "No calorie lookups. Your AI does the math."),
     ("widgets", "Log from your home screen.", "Water in one tap. Supplements too."),
     ("detail", "Never miss a supplement.", "Reminders, streaks and a year at a glance."),
