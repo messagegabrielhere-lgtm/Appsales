@@ -157,11 +157,16 @@ struct AskAIView: View {
                 Toggle("Include my profile", isOn: includeProfile)
                 if HealthReader.isAvailable {
                     Toggle(isOn: includeHealth) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Include Apple Health")
-                            Text("Steps, workouts, sleep, weight, resting heart rate")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                        Label {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Include Apple Health")
+                                Text("Steps, workouts, sleep, weight, resting heart rate from the Health app")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        } icon: {
+                            Image(systemName: "heart.fill")
+                                .foregroundStyle(.pink)
                         }
                     }
                 }

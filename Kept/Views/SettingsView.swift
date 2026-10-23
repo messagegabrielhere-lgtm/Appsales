@@ -62,6 +62,10 @@ struct SettingsView: View {
                          : "One-time purchase for unlimited AI questions, every period, Trends and Apple Health. \(UnlockPolicy.questionsLeft(used: store.settings.freeQuestionsUsed)) free questions left.")
                 }
 
+                if HealthReader.isAvailable {
+                    AppleHealthSection()
+                }
+
                 Section {
                     Picker("Glass size", selection: glassBinding) {
                         ForEach(glassOptions, id: \.self) { option in
@@ -155,6 +159,49 @@ struct SettingsView: View {
                     Button("Done") { dismiss() }
                 }
             }
+        }
+    }
+}
+
+/// Names the HealthKit integration in plain sight: what Fuelprint reads from Apple Health,
+/// that it never writes, and where to change access.
+struct AppleHealthSection: View {
+    @StateObject private var healthReader = HealthReader()
+    @Environment(\.openURL) private var openURL
+    @State private var requested = false
+
+    var body: some View {
+        Section {
+            Label {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Apple Health")
+                    Text("Reads steps, workouts, exercise minutes, active calories, sleep, weight and resting heart rate")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            } icon: {
+                Image(systemName: "heart.fill")
+                    .foregroundStyle(.pink)
+            }
+            Button {
+                Task {
+                    _ = await healthReader.requestAccess()
+                    requested = true
+                }
+            } label: {
+                Label(requested ? "Apple Health Access Requested" : "Connect Apple Health", systemImage: "heart.text.square")
+            }
+            Button {
+                if let url = URL(string: "x-apple-health://") {
+                    openURL(url)
+                }
+            } label: {
+                Label("Open the Health App", systemImage: "arrow.up.forward.app")
+            }
+        } header: {
+            Text("Apple Health")
+        } footer: {
+            Text("\(Brand.name) works with Apple Health (HealthKit) to add your activity, sleep and weight to the AI questions you choose to send. It only reads, never writes to Health, and nothing leaves this phone unless you send it. Change access anytime in Health > Profile > Apps > \(Brand.name).")
         }
     }
 }
