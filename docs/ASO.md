@@ -71,7 +71,7 @@ has small competitors, so 2.3 renames the store listing:
 
 - Name: `Fuelprint: AI Nutrition Coach`
 - Subtitle: `Food & Supplement Assistant`
-- Keywords: `tracker,protein,health,diet,calorie,meal,log,diary,vitamin,creatine,voice,scanner,label,gut,glp`
+- Keywords: `tracker,protein,health,diet,calorie,meal,log,diary,vitamin,creatine,voice,scanner,label,gut,water`
 
 "Dietitian" and "nutritionist" score well but are left out: Fuelprint is neither, and both are
 protected professional titles.

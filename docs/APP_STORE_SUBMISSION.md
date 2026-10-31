@@ -52,7 +52,11 @@ country and VAT.
 1. **My Apps > + > New App**. Platform iOS, name `Kept` (if the name is taken, try
    `Kept: Daily Habits`), primary language English (U.S.), bundle ID from step 2, SKU `kept-ios-1`.
 2. **Pricing and Availability**: choose price **$0.99 (Tier 1)**. Make it available in all
-   territories unless you have a reason not to.
+   territories **except China mainland**: China requires an ICP filing number for every app,
+   and Fuelprint's Ask AI hands prompts to ChatGPT, Claude, Gemini, Perplexity, Copilot and
+   Grok, which are not licensed there. Apple removes apps without a filing.
+   In **Business > Agreements** (or App Information > Digital Services Act), keep the EU
+   trader status declared as Pioneer I LLC; an app without it is withdrawn from EU storefronts.
 3. **App Privacy**: click **Get Started**, answer **No, we do not collect data from this app**.
    This is true; the app has no network code.
 4. **App Information**: category **Productivity**, secondary **Health & Fitness**. Age rating:
