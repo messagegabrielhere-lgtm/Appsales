@@ -1,3 +1,4 @@
+import StoreKit
 import SwiftUI
 import UIKit
 
@@ -73,6 +74,7 @@ struct BrokerRow: View {
 
 struct BrokerDetailView: View {
     @Environment(AppStore.self) private var store
+    @Environment(\.requestReview) private var requestReview
     let broker: Broker
     let personID: UUID
     @State private var copied = false
@@ -114,6 +116,13 @@ struct BrokerDetailView: View {
                         get: { progress.status },
                         set: { status in
                             store.setStatus(status, broker: broker, person: person)
+                            if status == .confirmed {
+                                let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
+                                if store.shouldAskForReview(version: version) {
+                                    store.markAskedForReview(version: version)
+                                    requestReview()
+                                }
+                            }
                             if store.data.remindersEnabled {
                                 if status == .notStarted { Reminders.cancelRecheck(broker, for: person) }
                                 else { Reminders.scheduleRecheck(broker, for: person) }

@@ -11,6 +11,9 @@ struct AppData: Codable, Equatable {
     var findings: [Finding] = []
     var remindersEnabled: Bool = false
     var weeklyScanReminder: Bool = false
+    /// App version in which we last asked for an App Store rating. Optional so
+    /// data saved by earlier versions still loads.
+    var reviewPromptVersion: String?
 }
 
 @Observable
@@ -112,6 +115,19 @@ final class AppStore {
             if let note { progress.note = note }
             data.brokerProgress[key] = progress
         }
+    }
+
+    // MARK: Rating prompt
+
+    /// Ask for a rating only after a real win (two sites confirmed removed,
+    /// across the family) and at most once per app version.
+    func shouldAskForReview(version: String) -> Bool {
+        guard data.reviewPromptVersion != version else { return false }
+        return data.brokerProgress.values.filter { $0.status == .confirmed }.count >= 2
+    }
+
+    func markAskedForReview(version: String) {
+        update { $0.reviewPromptVersion = version }
     }
 
     func brokersDone(for person: Person) -> Int {

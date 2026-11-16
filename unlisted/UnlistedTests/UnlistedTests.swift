@@ -238,3 +238,38 @@ final class LaunchTests: XCTestCase {
         }
     }
 }
+
+final class ReviewPromptTests: XCTestCase {
+    private func freshStore() -> AppStore {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json")
+        return AppStore(fileURL: url)
+    }
+
+    func testAsksOnlyAfterTwoRemovalsAndOncePerVersion() {
+        let store = freshStore()
+        let person = Person(relationship: .me)
+        let brokers = BrokerCatalog.all
+        XCTAssertFalse(store.shouldAskForReview(version: "1.0.1"))
+
+        store.setStatus(.confirmed, broker: brokers[0], person: person)
+        XCTAssertFalse(store.shouldAskForReview(version: "1.0.1"), "one removal is not enough")
+
+        store.setStatus(.submitted, broker: brokers[1], person: person)
+        XCTAssertFalse(store.shouldAskForReview(version: "1.0.1"), "a sent request is not a removal")
+
+        store.setStatus(.confirmed, broker: brokers[1], person: person)
+        XCTAssertTrue(store.shouldAskForReview(version: "1.0.1"))
+
+        store.markAskedForReview(version: "1.0.1")
+        XCTAssertFalse(store.shouldAskForReview(version: "1.0.1"), "never twice in one version")
+        XCTAssertTrue(store.shouldAskForReview(version: "1.0.2"))
+    }
+
+    func testOldSavedDataWithoutTheNewFieldStillLoads() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json")
+        try Data(#"{"people":[],"brokerProgress":{},"checklist":{},"findings":[],"remindersEnabled":true,"weeklyScanReminder":false}"#.utf8).write(to: url)
+        let store = AppStore(fileURL: url)
+        XCTAssertTrue(store.data.remindersEnabled, "existing data must survive the update")
+        XCTAssertNil(store.data.reviewPromptVersion)
+    }
+}

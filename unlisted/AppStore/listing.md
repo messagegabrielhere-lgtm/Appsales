@@ -8,7 +8,7 @@ Everything below fits Apple's character limits.
 |---|---|
 | Name (30 max) | Unlisted: Remove My Info |
 | Backup names if taken | Unlisted Family Privacy · Unlisted: Opt Out & Protect |
-| Subtitle (30 max) | Erase your family from the web |
+| Subtitle (30 max) | Opt out of data broker sites |
 | Bundle ID | com.messagegabrielhere.unlisted |
 | SKU | unlisted-ios-001 |
 | Primary category | Utilities |
@@ -59,11 +59,14 @@ Unlisted is free. It gives general privacy guidance, not legal advice.
 
 ## Keywords (100 max)
 
-privacy,data broker,opt out,people search,identity theft,credit freeze,remove,delete info,family
+people,search,privacy,personal,delete,removal,identity,theft,credit,freeze,doxxing,family,erase,spam
 
-## What's new (version 1.0)
+No spaces, and no words already in the name or subtitle: Apple indexes all three together and combines them, so "remove" + "personal" + "info" already covers "remove personal info".
 
-First release.
+## What's new (version 1.0.1)
+
+• Unlisted now asks, once, for a rating after you've cleared yourself off two sites. Ratings help other families find the app.
+• Small fixes and improvements.
 
 ## App Review notes
 

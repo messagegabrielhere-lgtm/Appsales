@@ -272,6 +272,9 @@ def version_text(vid, meta):
     loc = next((l for l in locs if l["attributes"]["locale"] == "en-US"), locs[0] if locs else None)
     attrs = {"description": meta["description"], "keywords": meta["keywords"],
              "promotionalText": meta["promotionalText"], "supportUrl": meta["supportUrl"]}
+    if meta.get("whatsNew"):
+        # Apple rejects whatsNew on a first release, so it's only sent when set.
+        attrs["whatsNew"] = meta["whatsNew"]
     if loc:
         lid = loc["id"]
         s, r = api("PATCH", f"/v1/appStoreVersionLocalizations/{lid}",
